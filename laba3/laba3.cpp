@@ -5,7 +5,7 @@
 #include <Windows.h>
 #include <vector>
 #include <ctime>
-
+#include <conio.h>
 
 using namespace std;
 
@@ -16,15 +16,29 @@ void gotoxy(int x, int y) {
 
 class Field {
 private:
-	const int BORDER = 100;// граница поля
+	
 	const int EMPTY = 0;//пустая ячейка
 	const int MINE = 10;//мина
 	int SIZE;//размер поля включая границы
-	vector <vector<int>> field;
+	
 public:
+	const int BORDER = 100;// граница поля
+	vector <vector<int>> field;
 	Field() {
 		SIZE = 5;
 	}
+
+	bool isBorder(int x, int y) {
+		if (x < 0 || x >= SIZE) return false;
+		if (y < 0 || y >= SIZE) return false;
+
+		if (field[x][y] == BORDER)
+		{
+			return true;
+		}
+		return false;
+	}
+
 	//функция инициализации поля
 	void initField() {
 		for (int i = 0; i < SIZE; i++) {
@@ -99,6 +113,69 @@ public:
 	}
 };
 
+class Keyboard {
+private:
+	int ch = 0;
+public:
+	Keyboard() {
+		ch = 0;
+	}
+	void waitKey() {
+		ch = _getch();
+	}
+
+	int getKey() {
+		return ch;
+	}
+};
+
+class Cursor {
+private:
+	int x = 1;
+	int y = 1;
+
+	int tx = 1;
+	int ty = 1;
+public:
+	void save() {
+		tx = x;
+		ty = y;
+	}
+
+	void undo() {
+		x = tx;
+		y = ty;
+	}
+
+	void incX() {
+		x++;
+	}
+
+	void incY() {
+		y++;
+	}
+
+	void decX() {
+		x--;
+	}
+	
+	void decY() {
+		y--;
+	}
+
+	int getX() {
+		return x;
+	}
+
+	int getY() {
+		return y;
+	}
+
+	void move() {
+		gotoxy(x, y);
+	}
+};
+
 class Game {
 private:
 	void Logo() {
@@ -110,12 +187,36 @@ private:
 public:
 	void run() {
 		//Logo();
-		cout << "Начать игру" << endl;
+		//cout << "Начать игру" << endl;
 		Field field;
 		field.initField();
 		field.placeMines(3);
 		field.setDigits();
 		field.Show();
+
+		Keyboard kb;
+		Cursor cs;
+
+		cs.move();
+
+		while (true) {
+			kb.waitKey();
+			cs.save();
+
+			switch (kb.getKey())
+			{
+			case 77: cs.incX(); break;// вправо
+			case 80: cs.incY(); break;// вниз
+			case 75: cs.decX(); break;// влево
+			case 72: cs.decY(); break;// вверх
+			}
+
+			if (field.isBorder(cs.getX(), cs.getY()))
+			{
+				cs.undo();
+			}
+			cs.move();
+		}
 	}
 };
 
