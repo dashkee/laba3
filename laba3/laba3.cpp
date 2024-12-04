@@ -20,14 +20,26 @@ private:
 	const int EMPTY = 0;//пустая ячейка
 	const int MINE = 10;//мина
 	int SIZE;//размер поля включая границы
-	
-public:
-	const int BORDER = 100;// граница поля
+		const int BORDER = 100;// граница поля
 	vector <vector<int>> field;
-	Field() {
-		SIZE = 5;
-	}
+	vector <vector<int>> mask;
+public:
 
+	Field() {
+		SIZE = 10;
+	}
+	//функция открытия ячейки
+	int openCell(int x, int y) {
+		mask[x][y] = 1;
+
+		if (field[x][y] == MINE) {
+
+			return 0;
+		}
+
+		return 1;
+	}
+	//функция для определения края поля
 	bool isBorder(int x, int y) {
 		if (x < 0 || x >= SIZE) return false;
 		if (y < 0 || y >= SIZE) return false;
@@ -52,10 +64,31 @@ public:
 			field.push_back(temp);
 		}
 	}
+	//Маска для ячеек
+	void initMask() {
+		for (int i = 0; i < SIZE; i++) {
+			vector<int> temp;
+			for (int j = 0; j < SIZE; j++) {
+				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1)
+					temp.push_back(BORDER);
+				else
+					temp.push_back(EMPTY);
+			}
+			mask.push_back(temp);
+		}
+	}
+
 	//функция вывода поля
 	void Show() {
+		gotoxy(0, 0);
 		for (int i = 0; i < SIZE; i++) {
 			for (int j = 0; j < SIZE; j++) {
+
+				if (mask[j][i] == EMPTY) {
+					cout << ".";
+					continue;
+				}
+
 				if (field[j][i] == BORDER)
 					cout << "#";
 				else if (field[j][i] == EMPTY)
@@ -112,7 +145,7 @@ public:
 		}
 	}
 };
-
+//класс для символа с клавиатуры
 class Keyboard {
 private:
 	int ch = 0;
@@ -128,7 +161,7 @@ public:
 		return ch;
 	}
 };
-
+// класс для курсора
 class Cursor {
 private:
 	int x = 1;
@@ -185,12 +218,21 @@ private:
 		system("cls");
 	}
 public:
+	void gameOver() {
+		gotoxy(40, 10);
+		cout << "Game over";
+		Sleep(2000);
+		gotoxy(0, 15);
+		system("pause");
+	}
+
 	void run() {
 		//Logo();
 		//cout << "Начать игру" << endl;
 		Field field;
 		field.initField();
-		field.placeMines(3);
+		field.initMask();
+		field.placeMines(9);
 		field.setDigits();
 		field.Show();
 
@@ -198,8 +240,8 @@ public:
 		Cursor cs;
 
 		cs.move();
-
-		while (true) {
+		bool exit = false;
+		while (!exit) {
 			kb.waitKey();
 			cs.save();
 
@@ -209,8 +251,16 @@ public:
 			case 80: cs.incY(); break;// вниз
 			case 75: cs.decX(); break;// влево
 			case 72: cs.decY(); break;// вверх
+			//нажатие на enter
+			case 13: 
+				if (field.openCell(cs.getX(), cs.getY()) == 0) {
+					field.Show();
+					gameOver();
+					exit = true;
+				}
+				field.Show();
+				break;
 			}
-
 			if (field.isBorder(cs.getX(), cs.getY()))
 			{
 				cs.undo();
