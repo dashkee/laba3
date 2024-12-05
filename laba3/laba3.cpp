@@ -6,6 +6,7 @@
 #include <vector>
 #include <ctime>
 #include <conio.h>
+#include <stack>
 
 using namespace std;
 
@@ -43,15 +44,13 @@ void setColor(int background, int text)
 
 class Field {
 private:
-	
 	const int EMPTY = 0;//пустая ячейка
 	const int MINE = 10;//мина
 	int SIZE;//размер поля включая границы
-		const int BORDER = 100;// граница поля
+	const int BORDER = 100;// граница поля
 	vector <vector<int>> field;
 	vector <vector<int>> mask;
 public:
-
 	Field() {
 		SIZE = 10;
 	}
@@ -60,6 +59,9 @@ public:
 		int result = 1;
 		mask[x][y] = 1;
 		if (field[x][y] == MINE) {
+			result = 10;
+		}
+		else if (field[x][y] == EMPTY) {
 			result = 0;
 		}
 		Show();
@@ -98,7 +100,7 @@ public:
 	void initMask() {
 		initVec(mask);
 	}
-
+	// установка цвета символа
 	void coutColor(char ch, int color) {
 		setColor(15, color);
 		cout << ch;
@@ -176,6 +178,63 @@ public:
 			}
 		}
 	}
+
+	void fill(int px, int py) {
+		stack <int> stk;
+		stk.push(px);
+		stk.push(py);
+		int x =0, y=0;
+		while (true) {
+			y = stk.top();
+			stk.pop();
+			x = stk.top();
+			stk.pop();
+			 
+			if (field[x][y + 1] == EMPTY && mask[x][y + 1] == 0) {
+				stk.push(x);
+				stk.push(y + 1);
+			}
+			mask[x][y + 1] = 1;
+			if (field[x][y - 1] == EMPTY && mask[x][y - 1] == 0) {
+				stk.push(x);
+				stk.push(y - 1);
+			}
+			mask[x][y - 1] = 1;
+			if (field[x + 1][y] == EMPTY && mask[x + 1][y] == 0) {
+				stk.push(x + 1);
+				stk.push(y);
+			}
+			mask[x + 1][y] = 1;
+			if (field[x - 1][y] == EMPTY && mask[x - 1][y] == 0) {
+				stk.push(x - 1);
+				stk.push(y);
+			}
+			mask[x - 1][y] = 1;
+			if (field[x + 1][y + 1] == EMPTY && mask[x + 1][y + 1] == 0) {
+				stk.push(x + 1);
+				stk.push(y + 1);
+			}
+			mask[x + 1][y + 1] = 1;
+			if (field[x - 1][y + 1] == EMPTY && mask[x - 1][y + 1] == 0) {
+				stk.push(x - 1);
+				stk.push(y + 1);
+			}
+			mask[x - 1][y + 1] = 1;
+			if (field[x - 1][y - 1] == EMPTY && mask[x - 1][y + 1] == 0) {
+				stk.push(x - 1);
+				stk.push(y + 1);
+			}
+			mask[x - 1][y + 1] = 1;
+			if (field[x + 1][y - 1] == EMPTY && mask[x + 1][y - 1] == 0) {
+				stk.push(x + 1);
+				stk.push(y - 1);
+			}
+			mask[x + 1][y - 1] = 1;
+			if (stk.empty()) break;
+		}
+		Show();
+	}
+
 };
 //класс для символа с клавиатуры
 class Keyboard {
@@ -285,9 +344,13 @@ public:
 			case 72: cs.decY(); break;// вверх
 			//нажатие на enter
 			case 13: 
-				if (field.openCell(cs.getX(), cs.getY()) == 0) {
+				int res = field.openCell(cs.getX(), cs.getY());
+				if (res == 10) {
 					gameOver();
 					exit = true;
+				}
+				if (res == 0) {
+					field.fill(cs.getX(), cs.getY());
 				}
 				break;
 			}
