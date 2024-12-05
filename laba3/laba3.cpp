@@ -14,6 +14,33 @@ void gotoxy(int x, int y) {
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), p);
 }
 
+enum ConsoleColor
+{
+	BLACK = 0,
+	BLUE = 1,
+	GREEN = 2,
+	CYAN = 3,
+	RED = 4,
+	MAGENTA = 5,
+	BROWN = 6,
+	LIGHT_GRAY = 7,
+	DARKGRAY = 8,
+	LIGHT_BLUE = 9,
+	LIGHT_GREEN = 10,
+	LIGHT_CYAN = 11,
+	LIGHT_RED = 12,
+	LIGHT_MAGENTA = 13,
+	YELLOW = 14,
+	WHITE = 15
+};
+
+//устанавливается цвет текста и подложки консоли
+void setColor(int background, int text)
+{
+	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hStdOut, (WORD)((background << 4) | text));
+}
+
 class Field {
 private:
 	
@@ -30,14 +57,13 @@ public:
 	}
 	//функция открытия ячейки
 	int openCell(int x, int y) {
+		int result = 1;
 		mask[x][y] = 1;
-
 		if (field[x][y] == MINE) {
-
-			return 0;
+			result = 0;
 		}
-
-		return 1;
+		Show();
+		return result;
 	}
 	//функция для определения края поля
 	bool isBorder(int x, int y) {
@@ -51,8 +77,7 @@ public:
 		return false;
 	}
 
-	//функция инициализации поля
-	void initField() {
+	void initVec(vector <vector<int>> & vec) {
 		for (int i = 0; i < SIZE; i++) {
 			vector<int> temp;
 			for (int j = 0; j < SIZE; j++) {
@@ -61,21 +86,23 @@ public:
 				else
 					temp.push_back(EMPTY);
 			}
-			field.push_back(temp);
+			vec.push_back(temp);
 		}
+	}
+
+	//функция инициализации поля
+	void initField() {
+		initVec(field);
 	}
 	//Маска для ячеек
 	void initMask() {
-		for (int i = 0; i < SIZE; i++) {
-			vector<int> temp;
-			for (int j = 0; j < SIZE; j++) {
-				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1)
-					temp.push_back(BORDER);
-				else
-					temp.push_back(EMPTY);
-			}
-			mask.push_back(temp);
-		}
+		initVec(mask);
+	}
+
+	void coutColor(char ch, int color) {
+		setColor(15, color);
+		cout << ch;
+		setColor(15, 0);
 	}
 
 	//функция вывода поля
@@ -89,14 +116,19 @@ public:
 					continue;
 				}
 
-				if (field[j][i] == BORDER)
-					cout << "#";
-				else if (field[j][i] == EMPTY)
-					cout << " ";
-				else if (field[j][i] == MINE)
-					cout << "*";
-				else if (field[j][i] >= 1 && field[j][i] <= 8)
-					cout << field[j][i];
+				if (field[j][i] == BORDER) {
+					coutColor('#', 9);
+				}
+				else if (field[j][i] == EMPTY) cout << " ";
+				else if (field[j][i] == MINE) cout << "*";
+				else if (field[j][i] == 1) coutColor('1', 1);
+				else if (field[j][i] == 2) coutColor('2', 2);
+				else if (field[j][i] == 5) coutColor('5', 6);
+				else if (field[j][i] == 3) coutColor('3', 4);
+				else if (field[j][i] == 4) coutColor('4', 13);
+				else if (field[j][i] == 6) coutColor('6', 8);
+				else if (field[j][i] == 7) coutColor('7', 10);
+				else if (field[j][i] == 8) coutColor('8', 11);
 			}
 			cout << endl;
 		}
@@ -232,7 +264,7 @@ public:
 		Field field;
 		field.initField();
 		field.initMask();
-		field.placeMines(9);
+		field.placeMines(10);
 		field.setDigits();
 		field.Show();
 
@@ -254,11 +286,9 @@ public:
 			//нажатие на enter
 			case 13: 
 				if (field.openCell(cs.getX(), cs.getY()) == 0) {
-					field.Show();
 					gameOver();
 					exit = true;
 				}
-				field.Show();
 				break;
 			}
 			if (field.isBorder(cs.getX(), cs.getY()))
