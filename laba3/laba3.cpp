@@ -50,6 +50,7 @@ private:
 	const int BORDER = 100;// граница поля
 	vector <vector<int>> field;
 	vector <vector<int>> mask;
+	const int FLAG = 11; // флаг
 public:
 	Field() {
 		SIZE = 10;
@@ -57,15 +58,21 @@ public:
 	//функция открытия ячейки
 	int openCell(int x, int y) {
 		int result = 1;
-		mask[x][y] = 1;
-		if (field[x][y] == MINE) {
-			result = 10;
+
+		// Проверяем, что ячейка не помечена флагом
+		if (mask[x][y] != FLAG) {
+			mask[x][y] = 1; // Открываем ячейку
+			// Проверяем содержимое ячейки
+			if (field[x][y] == MINE) {
+				result = 10; // Ячейка с миной
+			}
+			else if (field[x][y] == EMPTY) {
+				result = 0; // Пустая ячейка
+			}
+			Show(); // Обновляем отображение
 		}
-		else if (field[x][y] == EMPTY) {
-			result = 0;
-		}
-		Show();
-		return result;
+
+		return result; // Возвращаем результат
 	}
 	//функция для определения края поля
 	bool isBorder(int x, int y) {
@@ -79,7 +86,8 @@ public:
 		return false;
 	}
 
-	void initVec(vector <vector<int>> & vec) {
+	//функция инициализации
+	void initVec(vector <vector<int>>& vec) {
 		for (int i = 0; i < SIZE; i++) {
 			vector<int> temp;
 			for (int j = 0; j < SIZE; j++) {
@@ -96,10 +104,12 @@ public:
 	void initField() {
 		initVec(field);
 	}
+
 	//Маска для ячеек
 	void initMask() {
 		initVec(mask);
 	}
+
 	// установка цвета символа
 	void coutColor(char ch, int color) {
 		setColor(15, color);
@@ -113,14 +123,18 @@ public:
 		for (int i = 0; i < SIZE; i++) {
 			for (int j = 0; j < SIZE; j++) {
 
-				if (mask[j][i] == EMPTY) {
+				if (mask[j][i] == FLAG) {
+					coutColor('F', 4);
+					continue;
+				}
+				else if (mask[j][i] == EMPTY) {
 					cout << ".";
 					continue;
 				}
-
 				if (field[j][i] == BORDER) {
 					coutColor('#', 9);
 				}
+				//else 
 				else if (field[j][i] == EMPTY) cout << " ";
 				else if (field[j][i] == MINE) cout << "*";
 				else if (field[j][i] == 1) coutColor('1', 1);
@@ -135,6 +149,7 @@ public:
 			cout << endl;
 		}
 	}
+
 	//функция расстановки мин
 	void placeMines(int mines) {
 		//проверка на допустимое количество мин
@@ -150,6 +165,7 @@ public:
 			field[x][y] = MINE;
 		}
 	}
+
 	//функция расстановки чисел
 	void setDigits() {
 		int cnt = 0;
@@ -157,21 +173,21 @@ public:
 			for (int j = 1; j < SIZE - 1; j++) {
 				if (field[j][i] == MINE)
 					continue;
-				if (field[j+1][i] == MINE)
+				if (field[j + 1][i] == MINE)
 					cnt++;
-				if (field[j-1][i] == MINE)
+				if (field[j - 1][i] == MINE)
 					cnt++;
 				if (field[j][i + 1] == MINE)
 					cnt++;
-				if (field[j][i -1] == MINE)
+				if (field[j][i - 1] == MINE)
 					cnt++;
-				if (field[j+1][i + 1] == MINE)
+				if (field[j + 1][i + 1] == MINE)
 					cnt++;
-				if (field[j-1][i - 1] == MINE)
+				if (field[j - 1][i - 1] == MINE)
 					cnt++;
-				if (field[j-1][i + 1] == MINE)
+				if (field[j - 1][i + 1] == MINE)
 					cnt++;
-				if (field[j+1][i - 1] == MINE)
+				if (field[j + 1][i - 1] == MINE)
 					cnt++;
 				field[j][i] = cnt;
 				cnt = 0;
@@ -179,17 +195,18 @@ public:
 		}
 	}
 
+	// функция открытия соседних пустых ячеек
 	void fill(int px, int py) {
 		stack <int> stk;
 		stk.push(px);
 		stk.push(py);
-		int x =0, y=0;
+		int x = 0, y = 0;
 		while (true) {
 			y = stk.top();
 			stk.pop();
 			x = stk.top();
 			stk.pop();
-			 
+
 			if (field[x][y + 1] == EMPTY && mask[x][y + 1] == 0) {
 				stk.push(x);
 				stk.push(y + 1);
@@ -235,7 +252,17 @@ public:
 		Show();
 	}
 
+	void flag(int x, int y) {
+		if (mask[x][y] == 0) { // Проверяем, что ячейка не открыта
+			if (mask[x][y] != FLAG) { // Если флаг не установлен
+				mask[x][y] = FLAG; // Устанавливаем флаг
+			}
+			else if (mask[x][y] == FLAG) {
+				mask[x][y] = EMPTY; // Убираем флаг, если он уже установлен
+			}
+	   }
 };
+
 //класс для символа с клавиатуры
 class Keyboard {
 private:
@@ -252,12 +279,12 @@ public:
 		return ch;
 	}
 };
+
 // класс для курсора
 class Cursor {
 private:
 	int x = 1;
 	int y = 1;
-
 	int tx = 1;
 	int ty = 1;
 public:
@@ -342,17 +369,22 @@ public:
 			case 80: cs.incY(); break;// вниз
 			case 75: cs.decX(); break;// влево
 			case 72: cs.decY(); break;// вверх
+			case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
 			//нажатие на enter
 			case 13: 
 				int res = field.openCell(cs.getX(), cs.getY());
-				if (res == 10) {
-					gameOver();
-					exit = true;
-				}
-				if (res == 0) {
-					field.fill(cs.getX(), cs.getY());
+				if (res != 1) {
+					if (res == 10) {
+						gameOver();
+						exit = true;
+					}
+					if (res == 0) {
+						field.fill(cs.getX(), cs.getY());
+					}
 				}
 				break;
+			//default:
+              //  break; // Игнорируем остальные нажатия
 			}
 			if (field.isBorder(cs.getX(), cs.getY()))
 			{
@@ -369,3 +401,6 @@ int main()
 	Game game;
 	game.run();
 }
+// первая ячейка не может быть миной
+// выигрыш и проигрыш
+// флаг
