@@ -74,6 +74,13 @@ public:
 
 		return result; // Возвращаем результат
 	}
+
+	bool isMine(int x, int y) {
+		if (field[x][y] == MINE) {
+			return 10; // Ячейка с миной
+		}
+	}
+
 	//функция для определения края поля
 	bool isBorder(int x, int y) {
 		if (x < 0 || x >= SIZE) return false;
@@ -151,18 +158,21 @@ public:
 	}
 
 	//функция расстановки мин
-	void placeMines(int mines) {
+	void placeMines(int mines, int _x, int _y) {
 		//проверка на допустимое количество мин
 		if (mines >= (SIZE - 2) * (SIZE - 2)) return;
+
 		for (int i = 0; i < mines; i++) {
 			int x = 0;
 			int y = 0;
-			//поиск пустой ячейки, не занятой миной
-			do {
-				x = rand() % (SIZE - 2) + 1;
-				y = rand() % (SIZE - 2) + 1;
-			} while (field[x][y] == MINE);
-			field[x][y] = MINE;
+
+			x = rand() % (SIZE - 2) + 1;
+			y = rand() % (SIZE - 2) + 1;
+			if (_x == x && _y == y) continue; // Не ставим мину на первую клетку
+			if (field[x][y] != MINE)
+			{
+				field[x][y] = MINE;
+			}
 		}
 	}
 
@@ -253,14 +263,25 @@ public:
 	}
 
 	void flag(int x, int y) {
-		if (mask[x][y] == 0) { // Проверяем, что ячейка не открыта
 			if (mask[x][y] != FLAG) { // Если флаг не установлен
 				mask[x][y] = FLAG; // Устанавливаем флаг
 			}
 			else if (mask[x][y] == FLAG) {
 				mask[x][y] = EMPTY; // Убираем флаг, если он уже установлен
 			}
-	   }
+	}
+
+		bool checkWin() {
+			for (int x = 0; x < SIZE; x++) {
+				for (int y = 0; y < SIZE; y++) {
+					if (field[x][y] == MINE && mask[x][y] == EMPTY) {
+						return false; // Если есть закрытая ячейка без мины, игрок не выиграл
+					}
+				}
+			}
+			return true; // Все ячейки без мин открыты, игрок выиграл
+		}
+
 };
 
 //класс для символа с клавиатуры
@@ -335,10 +356,19 @@ private:
 		Sleep(2000);
 		system("cls");
 	}
+	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
 	void gameOver() {
 		gotoxy(40, 10);
 		cout << "Game over";
+		Sleep(2000);
+		gotoxy(0, 15);
+		system("pause");
+	}
+
+	void win() {
+		gotoxy(40, 10);
+		cout << "Вы победили!";
 		Sleep(2000);
 		gotoxy(0, 15);
 		system("pause");
@@ -350,8 +380,8 @@ public:
 		Field field;
 		field.initField();
 		field.initMask();
-		field.placeMines(10);
-		field.setDigits();
+		//field.placeMines(10);
+		//field.setDigits();
 		field.Show();
 
 		Keyboard kb;
@@ -372,16 +402,25 @@ public:
 			case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
 			//нажатие на enter
 			case 13: 
-				int res = field.openCell(cs.getX(), cs.getY());
-				if (res != 1) {
-					if (res == 10) {
-						gameOver();
-						exit = true;
-					}
-					if (res == 0) {
-						field.fill(cs.getX(), cs.getY());
-					}
+				if (firstOpen == true) {
+					field.placeMines(10, cs.getX(), cs.getY());
+					field.setDigits();
+					firstOpen = false;
 				}
+					int res = field.openCell(cs.getX(), cs.getY());
+					if (res != 1) {
+						if (res == 10) {
+							gameOver();
+							exit = true;
+						}
+						if (res == 0) {
+							field.fill(cs.getX(), cs.getY());
+						}
+					}
+					if (field.checkWin()) {
+						win();
+						exit = true; // Завершаем игру
+					}
 				break;
 			//default:
               //  break; // Игнорируем остальные нажатия
@@ -397,10 +436,10 @@ public:
 
 int main()
 {
+	SetConsoleCP(1251);// установка кодовой страницы win-cp 1251 в поток ввода
+	SetConsoleOutputCP(1251); // установка кодовой страницы win-cp 1251 в поток вывода
+	setlocale(LC_ALL, "Rus");
 	srand(time(0));
 	Game game;
 	game.run();
 }
-// первая ячейка не может быть миной
-// выигрыш и проигрыш
-// флаг
