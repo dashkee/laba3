@@ -1,12 +1,14 @@
 ﻿// laba3.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
 //
-
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <Windows.h>
 #include <vector>
 #include <ctime>
 #include <conio.h>
 #include <stack>
+#define SIZE 10
+#define MINES 9
 
 using namespace std;
 
@@ -42,68 +44,150 @@ void setColor(int background, int text)
 	SetConsoleTextAttribute(hStdOut, (WORD)((background << 4) | text));
 }
 
+class Menu {
+private:
+	char options[4][20];
+public:
+	int selectedOption;
+	Menu(){
+		strcpy(options[0], "Новая игра");
+		strcpy(options[1], "Настройки");
+		strcpy(options[2], "Статистика");
+		strcpy(options[3], "Выход");
+		selectedOption = 0;
+	}
+	void printMenu() {
+		printf("Меню:\n");
+		for (int i = 0; i < 4; i++) {
+			printf("%d) %s\n", i, options[i]);
+		}
+		printf("Выберите пункт меню: ");
+		scanf("%d", &selectedOption);
+	}
+};
+
+class Player {
+public:
+	int score;
+	int time;
+	Player() : score(0), time(0) {}
+};
+
+class Settings {
+public:
+	int size;
+	int mines;
+	int difficulty;
+
+	Settings() : size(SIZE), mines(MINES), difficulty(0) {}
+
+	void printSettings() {
+		printf("Настройки:\n");
+		printf("Размер поля: %d\n", size);
+		printf("Количество мин: %d\n", mines);
+	}
+};
+
+class Statistics {
+public:
+	int wins;
+	int losses;
+	long totalTime;
+
+	Statistics() : wins(0), losses(0), totalTime(0) {}
+
+	void saveStatistics() {
+		FILE* file = fopen("statistics.txt", "w");
+		if (file) {
+			fprintf(file, "%d\n%d\n%ld", wins, losses, totalTime);
+			fclose(file);
+		}
+	}
+
+	void printStatistics()
+	{
+		printf("Статистика:\n");
+		printf("Победы: %d\n", wins);
+		printf("Поражения: %d\n", losses);
+		printf("Общее время: %ld секунд\n", totalTime);
+
+	}
+
+	void loadStatistics() {
+		FILE* file = fopen("statistics.txt", "r");
+		if (file) {
+			fscanf(file, "%d\n%d\n%ld", &wins, &losses, &totalTime);
+			fclose(file);
+		}
+	}
+};
+
+class Cell {
+public:
+	int x, y;
+    bool isMine;
+	bool isBorder;
+	bool isOpened;
+	bool isFlagged;
+	int mineCount;
+	// Конструктор с инициализацией полей
+	Cell() : x(0), y(0), isMine(false), isBorder(false), isOpened(false), isFlagged(false), mineCount(0) {}
+};
+
+
 class Field {
 private:
-	const int EMPTY = 0;//пустая ячейка
-	const int MINE = 10;//мина
-	int SIZE;//размер поля включая границы
-	const int BORDER = 100;// граница поля
-	vector <vector<int>> field;
-	vector <vector<int>> mask;
-	const int FLAG = 11; // флаг
+	const int EMPTY = 0; // Пустая ячейка
+	const int MINE = 10; // Мина
+	//const int SIZE = 10; // Размер поля
+	const int BORDER = 100; // Граница поля
+	const int FLAG = 11; // Флаг
+
+	Cell field[SIZE][SIZE]; // Двумерный массив ячеек
+	int mask[SIZE][SIZE]; // Маска для ячеек
+
 public:
 	Field() {
-		SIZE = 10;
+		initMask();
+		initField();
 	}
 	//функция открытия ячейки
 	int openCell(int x, int y) {
 		int result = 1;
-
 		// Проверяем, что ячейка не помечена флагом
 		if (mask[x][y] != FLAG) {
 			mask[x][y] = 1; // Открываем ячейку
 			// Проверяем содержимое ячейки
-			if (field[x][y] == MINE) {
+			if (field[x][y].isMine) {
 				result = 10; // Ячейка с миной
 			}
-			else if (field[x][y] == EMPTY) {
+			else if (field[x][y].mineCount == 0) {
 				result = 0; // Пустая ячейка
 			}
 			Show(); // Обновляем отображение
 		}
-
 		return result; // Возвращаем результат
 	}
 
-	bool isMine(int x, int y) {
-		if (field[x][y] == MINE) {
-			return 10; // Ячейка с миной
-		}
-	}
-
 	//функция для определения края поля
-	bool isBorder(int x, int y) {
-		if (x < 0 || x >= SIZE) return false;
-		if (y < 0 || y >= SIZE) return false;
-
-		if (field[x][y] == BORDER)
-		{
-			return true;
+	bool Border(int x, int y) {
+		if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) {
+			return true; // Если ячейка за пределами поля — это граница
 		}
-		return false;
+		return field[x][y].isBorder;
 	}
 
 	//функция инициализации
-	void initVec(vector <vector<int>>& vec) {
+	void initVec(Cell cells[SIZE][SIZE]) {
 		for (int i = 0; i < SIZE; i++) {
-			vector<int> temp;
 			for (int j = 0; j < SIZE; j++) {
-				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1)
-					temp.push_back(BORDER);
-				else
-					temp.push_back(EMPTY);
+				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) {
+					cells[i][j].isBorder = true; // Устанавливаем границы
+				}
+				else {
+					cells[i][j].isBorder = false; // Обычные ячейки
+				}
 			}
-			vec.push_back(temp);
 		}
 	}
 
@@ -114,7 +198,16 @@ public:
 
 	//Маска для ячеек
 	void initMask() {
-		initVec(mask);
+		for (int i = 0; i < SIZE; i++) {
+			for (int j = 0; j < SIZE; j++) {
+				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) {
+					mask[i][j] = BORDER; // Устанавливаем границы
+				}
+				else {
+					mask[i][j] = EMPTY; // Инициализация маски
+				}
+			}
+		}
 	}
 
 	// установка цвета символа
@@ -134,24 +227,23 @@ public:
 					coutColor('F', 4);
 					continue;
 				}
-				else if (mask[j][i] == EMPTY) {
+				else if (mask[j][i] == EMPTY && !field[j][i].isOpened) {
 					cout << ".";
 					continue;
 				}
-				if (field[j][i] == BORDER) {
+				else if (field[j][i].isMine == true) cout << "*";
+				else if (mask[j][i] == BORDER || field[j][i].isBorder) {
 					coutColor('#', 9);
-				}
-				//else 
-				else if (field[j][i] == EMPTY) cout << " ";
-				else if (field[j][i] == MINE) cout << "*";
-				else if (field[j][i] == 1) coutColor('1', 1);
-				else if (field[j][i] == 2) coutColor('2', 2);
-				else if (field[j][i] == 5) coutColor('5', 6);
-				else if (field[j][i] == 3) coutColor('3', 4);
-				else if (field[j][i] == 4) coutColor('4', 13);
-				else if (field[j][i] == 6) coutColor('6', 8);
-				else if (field[j][i] == 7) coutColor('7', 10);
-				else if (field[j][i] == 8) coutColor('8', 11);
+				} 
+				else if (field[j][i].mineCount == 0) cout << " ";
+				else if (field[j][i].mineCount == 1) coutColor('1', 1);
+				else if (field[j][i].mineCount == 2) coutColor('2', 2);
+				else if (field[j][i].mineCount == 5) coutColor('5', 6);
+				else if (field[j][i].mineCount == 3) coutColor('3', 4);
+				else if (field[j][i].mineCount == 4) coutColor('4', 13);
+				else if (field[j][i].mineCount == 6) coutColor('6', 8);
+				else if (field[j][i].mineCount == 7) coutColor('7', 10);
+				else if (field[j][i].mineCount == 8) coutColor('8', 11);
 			}
 			cout << endl;
 		}
@@ -159,19 +251,19 @@ public:
 
 	//функция расстановки мин
 	void placeMines(int mines, int _x, int _y) {
-		//проверка на допустимое количество мин
+		// Проверка на допустимое количество мин
 		if (mines >= (SIZE - 2) * (SIZE - 2)) return;
 
-		for (int i = 0; i < mines; i++) {
-			int x = 0;
-			int y = 0;
+		for (int i = 0; i < mines;) {
+			int x = rand() % (SIZE - 2) + 1;
+			int y = rand() % (SIZE - 2) + 1;
 
-			x = rand() % (SIZE - 2) + 1;
-			y = rand() % (SIZE - 2) + 1;
-			if (_x == x && _y == y) continue; // Не ставим мину на первую клетку
-			if (field[x][y] != MINE)
-			{
-				field[x][y] = MINE;
+			// Не ставим мину на первую открытую клетку
+			if (_x == x && _y == y) continue;
+
+			if (!field[x][y].isMine) {
+				field[x][y].isMine = true;
+				i++; // Ставим мину и увеличиваем счётчик
 			}
 		}
 	}
@@ -181,25 +273,25 @@ public:
 		int cnt = 0;
 		for (int i = 1; i < SIZE - 1; i++) {
 			for (int j = 1; j < SIZE - 1; j++) {
-				if (field[j][i] == MINE)
+				if (field[j][i].isMine)
 					continue;
-				if (field[j + 1][i] == MINE)
+				if (field[j + 1][i].isMine)
 					cnt++;
-				if (field[j - 1][i] == MINE)
+				if (field[j - 1][i].isMine)
 					cnt++;
-				if (field[j][i + 1] == MINE)
+				if (field[j][i + 1].isMine)
 					cnt++;
-				if (field[j][i - 1] == MINE)
+				if (field[j][i - 1].isMine)
 					cnt++;
-				if (field[j + 1][i + 1] == MINE)
+				if (field[j + 1][i + 1].isMine)
 					cnt++;
-				if (field[j - 1][i - 1] == MINE)
+				if (field[j - 1][i - 1].isMine)
 					cnt++;
-				if (field[j - 1][i + 1] == MINE)
+				if (field[j - 1][i + 1].isMine)
 					cnt++;
-				if (field[j + 1][i - 1] == MINE)
+				if (field[j + 1][i - 1].isMine)
 					cnt++;
-				field[j][i] = cnt;
+				field[j][i].mineCount = cnt;
 				cnt = 0;
 			}
 		}
@@ -207,57 +299,65 @@ public:
 
 	// функция открытия соседних пустых ячеек
 	void fill(int px, int py) {
-		stack <int> stk;
+		stack<int> stk;
 		stk.push(px);
 		stk.push(py);
 		int x = 0, y = 0;
-		while (true) {
+
+		while (!stk.empty()) {
 			y = stk.top();
 			stk.pop();
 			x = stk.top();
 			stk.pop();
 
-			if (field[x][y + 1] == EMPTY && mask[x][y + 1] == 0) {
+			// Проверяем границы массива перед доступом к ячейкам
+			if (y + 1 < SIZE && field[x][y + 1].mineCount == 0 && mask[x][y + 1] == EMPTY) {
 				stk.push(x);
 				stk.push(y + 1);
 			}
 			mask[x][y + 1] = 1;
-			if (field[x][y - 1] == EMPTY && mask[x][y - 1] == 0) {
+
+			if (y - 1 >= 0 && field[x][y - 1].mineCount == 0 && mask[x][y - 1] == EMPTY) {
 				stk.push(x);
 				stk.push(y - 1);
 			}
 			mask[x][y - 1] = 1;
-			if (field[x + 1][y] == EMPTY && mask[x + 1][y] == 0) {
+
+			if (x + 1 < SIZE && field[x + 1][y].mineCount == 0 && mask[x + 1][y] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y);
 			}
 			mask[x + 1][y] = 1;
-			if (field[x - 1][y] == EMPTY && mask[x - 1][y] == 0) {
+
+			if (x - 1 >= 0 && field[x - 1][y].mineCount == 0 && mask[x - 1][y] == EMPTY) {
 				stk.push(x - 1);
 				stk.push(y);
 			}
 			mask[x - 1][y] = 1;
-			if (field[x + 1][y + 1] == EMPTY && mask[x + 1][y + 1] == 0) {
+
+			if (x + 1 < SIZE && y + 1 < SIZE && field[x + 1][y + 1].mineCount == 0 && mask[x + 1][y + 1] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y + 1);
 			}
 			mask[x + 1][y + 1] = 1;
-			if (field[x - 1][y + 1] == EMPTY && mask[x - 1][y + 1] == 0) {
+
+			if (x - 1 >= 0 && y + 1 < SIZE && field[x - 1][y + 1].mineCount == 0 && mask[x - 1][y + 1] == EMPTY) {
 				stk.push(x - 1);
 				stk.push(y + 1);
 			}
 			mask[x - 1][y + 1] = 1;
-			if (field[x - 1][y - 1] == EMPTY && mask[x - 1][y + 1] == 0) {
+
+			if (x - 1 >= 0 && y - 1 >= 0 && field[x - 1][y - 1].mineCount == 0 && mask[x - 1][y - 1] == EMPTY) {
 				stk.push(x - 1);
-				stk.push(y + 1);
+				stk.push(y - 1);
 			}
-			mask[x - 1][y + 1] = 1;
-			if (field[x + 1][y - 1] == EMPTY && mask[x + 1][y - 1] == 0) {
+			mask[x - 1][y - 1] = 1;
+
+			if (x + 1 < SIZE && y - 1 >= 0 && field[x + 1][y - 1].mineCount == 0 && mask[x + 1][y - 1] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y - 1);
 			}
 			mask[x + 1][y - 1] = 1;
-			if (stk.empty()) break;
 		}
 		Show();
 	}
@@ -271,10 +371,10 @@ public:
 			}
 	}
 
-		bool checkWin() {
+	bool checkWin() {
 			for (int x = 0; x < SIZE; x++) {
 				for (int y = 0; y < SIZE; y++) {
-					if (field[x][y] == MINE && mask[x][y] == EMPTY) {
+					if (field[x][y].isMine && mask[x][y] == EMPTY) {
 						return false; // Если есть закрытая ячейка без мины, игрок не выиграл
 					}
 				}
@@ -358,9 +458,10 @@ private:
 	}
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
+
 	void gameOver() {
 		gotoxy(40, 10);
-		cout << "Game over";
+		cout << "Вы проиграли!" << endl;
 		Sleep(2000);
 		gotoxy(0, 15);
 		system("pause");
@@ -375,61 +476,85 @@ public:
 	}
 
 	void run() {
-		//Logo();
-		//cout << "Начать игру" << endl;
+		Logo();
+		Player player;
+		Menu menu;
 		Field field;
-		field.initField();
-		field.initMask();
-		//field.placeMines(10);
-		//field.setDigits();
-		field.Show();
-
+		Settings settings;// Начальные настройки
+		Statistics statistics;
 		Keyboard kb;
 		Cursor cs;
+		
+		while (true) {
+			menu.printMenu();
 
-		cs.move();
-		bool exit = false;
-		while (!exit) {
-			kb.waitKey();
-			cs.save();
+			if (menu.selectedOption == 0) {
+				system("cls"); // Очистка консоли
+				field.initField();
+				field.initMask();
+				field.Show();
+				time_t start_time = time(NULL);
 
-			switch (kb.getKey())
-			{
-			case 77: cs.incX(); break;// вправо
-			case 80: cs.incY(); break;// вниз
-			case 75: cs.decX(); break;// влево
-			case 72: cs.decY(); break;// вверх
-			case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
-			//нажатие на enter
-			case 13: 
-				if (firstOpen == true) {
-					field.placeMines(10, cs.getX(), cs.getY());
-					field.setDigits();
-					firstOpen = false;
+				cs.move();
+				bool exit = false;
+				while (!exit) {
+					kb.waitKey();
+					cs.save();
+
+					switch (kb.getKey())
+					{
+					case 77: cs.incX(); break;// вправо
+					case 80: cs.incY(); break;// вниз
+					case 75: cs.decX(); break;// влево
+					case 72: cs.decY(); break;// вверх
+					case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
+						//нажатие на enter
+					case 13:
+						if (firstOpen == true) {
+							field.placeMines(MINES, cs.getX(), cs.getY());
+							field.setDigits();
+							firstOpen = false;
+						}
+						int res = field.openCell(cs.getX(), cs.getY());
+						if (res != 1) {
+							if (res == 10) {
+								gameOver();
+								exit = true;
+							}
+							if (res == 0) {
+								field.fill(cs.getX(), cs.getY());
+							}
+						}
+						if (field.checkWin()) {
+							win();
+							exit = true; // Завершаем игру
+						}
+						break;
+					}
+					if (field.Border(cs.getX(), cs.getY()))
+					{
+						cs.undo();
+					}
+					cs.move();
 				}
-					int res = field.openCell(cs.getX(), cs.getY());
-					if (res != 1) {
-						if (res == 10) {
-							gameOver();
-							exit = true;
-						}
-						if (res == 0) {
-							field.fill(cs.getX(), cs.getY());
-						}
-					}
-					if (field.checkWin()) {
-						win();
-						exit = true; // Завершаем игру
-					}
-				break;
-			//default:
-              //  break; // Игнорируем остальные нажатия
+				// Обновление статистики после окончания игры
+				if (player.score > 0) statistics.wins++;
+				else statistics.losses++;
+				statistics.totalTime += player.time;
+				statistics.saveStatistics(); // Сохраняем статистику
 			}
-			if (field.isBorder(cs.getX(), cs.getY()))
-			{
-				cs.undo();
+			else if (menu.selectedOption == 1) {
+				system("cls");
+				settings.printSettings();
 			}
-			cs.move();
+			else if (menu.selectedOption == 2) {
+				system("cls");
+				statistics.printStatistics();
+			}
+			else if (menu.selectedOption == 3) {
+				statistics.saveStatistics();
+				exit(0);
+			}
 		}
 	}
 };
