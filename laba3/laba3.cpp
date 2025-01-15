@@ -250,9 +250,11 @@ public:
 	}
 
 	//функция расстановки мин
-	void placeMines(int mines, int _x, int _y) {
+	void placeMines(int mines, int _x, int _y, int* placedMines) {
 		// Проверка на допустимое количество мин
 		if (mines >= (SIZE - 2) * (SIZE - 2)) return;
+
+		*placedMines = 0; // Обнуляем счётчик для указателя
 
 		for (int i = 0; i < mines;) {
 			int x = rand() % (SIZE - 2) + 1;
@@ -264,6 +266,7 @@ public:
 			if (!field[x][y].isMine) {
 				field[x][y].isMine = true;
 				i++; // Ставим мину и увеличиваем счётчик
+				(*placedMines)++; // Увеличиваем счётчик через указатель
 			}
 		}
 	}
@@ -484,6 +487,7 @@ public:
 		Statistics statistics;
 		Keyboard kb;
 		Cursor cs;
+		int placedMinesUsingPointer;
 		
 		while (true) {
 			menu.printMenu();
@@ -511,7 +515,8 @@ public:
 						//нажатие на enter
 					case 13:
 						if (firstOpen == true) {
-							field.placeMines(MINES, cs.getX(), cs.getY());
+							field.placeMines(MINES, cs.getX(), cs.getY(), &placedMinesUsingPointer);
+							std::cout << "          Мин размещено (указатель): " << placedMinesUsingPointer << std::endl;
 							field.setDigits();
 							firstOpen = false;
 						}
@@ -525,7 +530,9 @@ public:
 								field.fill(cs.getX(), cs.getY());
 							}
 						}
+						player.time = time(NULL) - start_time;
 						if (field.checkWin()) {
+							
 							win();
 							exit = true; // Завершаем игру
 						}
