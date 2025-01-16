@@ -7,8 +7,8 @@
 #include <ctime>
 #include <conio.h>
 #include <stack>
-#define SIZE 10
-#define MINES 9
+#define SIZE 25
+#define MINES 99
 
 using namespace std;
 
@@ -46,23 +46,23 @@ void setColor(int background, int text)
 
 class Menu {
 private:
-	char options[4][20];
+	std::vector<std::string> options;
 public:
 	int selectedOption;
 	Menu(){
-		strcpy(options[0], "Новая игра");
-		strcpy(options[1], "Настройки");
-		strcpy(options[2], "Статистика");
-		strcpy(options[3], "Выход");
+		options.push_back("Новая игра");
+		options.push_back("Настройки");
+		options.push_back("Статистика");
+		options.push_back("Выход");
 		selectedOption = 0;
 	}
 	void printMenu() {
-		printf("Меню:\n");
-		for (int i = 0; i < 4; i++) {
-			printf("%d) %s\n", i, options[i]);
+		std::cout << "Меню:\n";
+		for (size_t i = 0; i < options.size(); i++) {
+			std::cout << i << ") " << options[i] << "\n";
 		}
-		printf("Выберите пункт меню: ");
-		scanf("%d", &selectedOption);
+		std::cout << "Выберите пункт меню: ";
+		std::cin >> selectedOption;
 	}
 };
 
@@ -78,13 +78,59 @@ public:
 	int size;
 	int mines;
 	int difficulty;
+	std::string difficultyLabel;
 
-	Settings() : size(SIZE), mines(MINES), difficulty(0) {}
+	Settings() : size(size), mines(mines), difficulty(0) { updateDifficultyLabel(); }
 
 	void printSettings() {
-		printf("Настройки:\n");
-		printf("Размер поля: %d\n", size);
-		printf("Количество мин: %d\n", mines);
+		std::cout << "Настройки:\n";
+		std::cout << "Размер поля: " << size << "\n";
+		std::cout << "Количество мин: " << mines << "\n";
+		std::cout << "Уровень сложности: " + difficultyLabel << "\n";
+	}
+
+		void setDifficulty(int* level) {
+			printf("Enter the Difficulty Level\n");
+			printf("Press 0 for BEGINNER (9 * 9 Cells and 10 "
+				"Mines)\n");
+			printf("Press 1 for INTERMEDIATE (16 * 16 Cells and 40 "
+				"Mines)\n");
+			printf("Press 2 for ADVANCED (24 * 24 Cells and 99 "
+				"Mines)\n");
+			int lvl;
+			scanf("%d", &lvl);
+			if (lvl == 0) {
+				size = 9;
+				mines = 10;
+			}
+
+			if (lvl == 1) {
+				size = 16;
+				mines = 40;
+			}
+
+			if (lvl == 2) {
+				size = 24;
+				mines = 99;
+			}
+			updateDifficultyLabel();
+		}
+private:
+	void updateDifficultyLabel() {
+		switch (difficulty) {
+		case 0:
+			difficultyLabel = "Легкий";
+			break;
+		case 1:
+			difficultyLabel = "Средний";
+			break;
+		case 2:
+			difficultyLabel = "Сложный";
+			break;
+		default:
+			difficultyLabel = "Неизвестный уровень";
+			break;
+		}
 	}
 };
 
@@ -139,14 +185,14 @@ class Field {
 private:
 	const int EMPTY = 0; // Пустая ячейка
 	const int MINE = 10; // Мина
-	//const int SIZE = 10; // Размер поля
 	const int BORDER = 100; // Граница поля
 	const int FLAG = 11; // Флаг
-
+	
 	Cell field[SIZE][SIZE]; // Двумерный массив ячеек
 	int mask[SIZE][SIZE]; // Маска для ячеек
 
 public:
+Settings set;
 	Field() {
 		initMask();
 		initField();
@@ -198,9 +244,9 @@ public:
 
 	//Маска для ячеек
 	void initMask() {
-		for (int i = 0; i < SIZE; i++) {
-			for (int j = 0; j < SIZE; j++) {
-				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) {
+		for (int i = 0; i < set.size; i++) {
+			for (int j = 0; j < set.size; j++) {
+				if (i == 0 || j == 0 || i == set.size - 1 || j == set.size - 1) {
 					mask[i][j] = BORDER; // Устанавливаем границы
 				}
 				else {
@@ -220,8 +266,8 @@ public:
 	//функция вывода поля
 	void Show() {
 		gotoxy(0, 0);
-		for (int i = 0; i < SIZE; i++) {
-			for (int j = 0; j < SIZE; j++) {
+		for (int i = 0; i < set.size; i++) {
+			for (int j = 0; j < set.size; j++) {
 
 				if (mask[j][i] == FLAG) {
 					coutColor('F', 4);
@@ -252,13 +298,13 @@ public:
 	//функция расстановки мин
 	void placeMines(int mines, int _x, int _y, int* placedMines) {
 		// Проверка на допустимое количество мин
-		if (mines >= (SIZE - 2) * (SIZE - 2)) return;
+		if (mines >= (set.size - 2) * (set.size - 2)) return;
 
 		*placedMines = 0; // Обнуляем счётчик для указателя
 
 		for (int i = 0; i < mines;) {
-			int x = rand() % (SIZE - 2) + 1;
-			int y = rand() % (SIZE - 2) + 1;
+			int x = rand() % (set.size - 2) + 1;
+			int y = rand() % (set.size - 2) + 1;
 
 			// Не ставим мину на первую открытую клетку
 			if (_x == x && _y == y) continue;
@@ -274,8 +320,8 @@ public:
 	//функция расстановки чисел
 	void setDigits() {
 		int cnt = 0;
-		for (int i = 1; i < SIZE - 1; i++) {
-			for (int j = 1; j < SIZE - 1; j++) {
+		for (int i = 1; i < set.size - 1; i++) {
+			for (int j = 1; j < set.size - 1; j++) {
 				if (field[j][i].isMine)
 					continue;
 				if (field[j + 1][i].isMine)
@@ -314,7 +360,7 @@ public:
 			stk.pop();
 
 			// Проверяем границы массива перед доступом к ячейкам
-			if (y + 1 < SIZE && field[x][y + 1].mineCount == 0 && mask[x][y + 1] == EMPTY) {
+			if (y + 1 < set.size && field[x][y + 1].mineCount == 0 && mask[x][y + 1] == EMPTY) {
 				stk.push(x);
 				stk.push(y + 1);
 			}
@@ -326,7 +372,7 @@ public:
 			}
 			mask[x][y - 1] = 1;
 
-			if (x + 1 < SIZE && field[x + 1][y].mineCount == 0 && mask[x + 1][y] == EMPTY) {
+			if (x + 1 < set.size && field[x + 1][y].mineCount == 0 && mask[x + 1][y] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y);
 			}
@@ -338,13 +384,13 @@ public:
 			}
 			mask[x - 1][y] = 1;
 
-			if (x + 1 < SIZE && y + 1 < SIZE && field[x + 1][y + 1].mineCount == 0 && mask[x + 1][y + 1] == EMPTY) {
+			if (x + 1 < set.size && y + 1 < set.size && field[x + 1][y + 1].mineCount == 0 && mask[x + 1][y + 1] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y + 1);
 			}
 			mask[x + 1][y + 1] = 1;
 
-			if (x - 1 >= 0 && y + 1 < SIZE && field[x - 1][y + 1].mineCount == 0 && mask[x - 1][y + 1] == EMPTY) {
+			if (x - 1 >= 0 && y + 1 < set.size && field[x - 1][y + 1].mineCount == 0 && mask[x - 1][y + 1] == EMPTY) {
 				stk.push(x - 1);
 				stk.push(y + 1);
 			}
@@ -356,7 +402,7 @@ public:
 			}
 			mask[x - 1][y - 1] = 1;
 
-			if (x + 1 < SIZE && y - 1 >= 0 && field[x + 1][y - 1].mineCount == 0 && mask[x + 1][y - 1] == EMPTY) {
+			if (x + 1 < set.size && y - 1 >= 0 && field[x + 1][y - 1].mineCount == 0 && mask[x + 1][y - 1] == EMPTY) {
 				stk.push(x + 1);
 				stk.push(y - 1);
 			}
@@ -375,8 +421,8 @@ public:
 	}
 
 	bool checkWin() {
-			for (int x = 0; x < SIZE; x++) {
-				for (int y = 0; y < SIZE; y++) {
+			for (int x = 0; x < set.size; x++) {
+				for (int y = 0; y < set.size; y++) {
 					if (field[x][y].isMine && mask[x][y] == EMPTY) {
 						return false; // Если есть закрытая ячейка без мины, игрок не выиграл
 					}
@@ -483,15 +529,15 @@ public:
 		Player player;
 		Menu menu;
 		Field field;
-		Settings settings;// Начальные настройки
+		//Settings settings;// Начальные настройки
 		Statistics statistics;
 		Keyboard kb;
 		Cursor cs;
 		int placedMinesUsingPointer;
-		
+		int l;
+		field.set.setDifficulty(&l);
 		while (true) {
 			menu.printMenu();
-
 			if (menu.selectedOption == 0) {
 				system("cls"); // Очистка консоли
 				field.initField();
@@ -515,8 +561,8 @@ public:
 						//нажатие на enter
 					case 13:
 						if (firstOpen == true) {
-							field.placeMines(MINES, cs.getX(), cs.getY(), &placedMinesUsingPointer);
-							std::cout << "          Мин размещено (указатель): " << placedMinesUsingPointer << std::endl;
+							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &placedMinesUsingPointer);
+							std:cout << string(field.set.size, ' ') + "Мин размещено (указатель): " << placedMinesUsingPointer << std::endl;
 							field.setDigits();
 							firstOpen = false;
 						}
@@ -552,7 +598,7 @@ public:
 			}
 			else if (menu.selectedOption == 1) {
 				system("cls");
-				settings.printSettings();
+				field.set.printSettings();
 			}
 			else if (menu.selectedOption == 2) {
 				system("cls");
