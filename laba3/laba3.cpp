@@ -7,6 +7,11 @@
 #include <ctime>
 #include <conio.h>
 #include <stack>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+
+
 #define SIZE 25
 #define MINES 99
 
@@ -53,6 +58,7 @@ public:
 		options.push_back("Новая игра");
 		options.push_back("Настройки");
 		options.push_back("Статистика");
+		options.push_back("Справка");
 		options.push_back("Выход");
 		selectedOption = 0;
 	}
@@ -68,9 +74,26 @@ public:
 
 class Player {
 public:
+	std::string name; // имя игрока
 	int score;
-	int time;
-	Player() : score(0), time(0) {}
+	int w_time, l_time, total_time;
+	int wins;
+	int losses;
+	Player() : score(0), l_time(0), total_time(0), wins(0), losses(0) {}
+	
+	// Метод для задания имени игрока
+	void setName(const std::string& new_name) {
+		name = new_name;
+	}
+	std::string getUserName() {
+		std::string userName;
+		std::cout << "Введите ваше имя: ";
+		std::getline(std::cin, userName);  // Чтение строки с пробелами
+		return userName;
+	}
+	const std::string& getName() const {
+		return name;
+	}
 };
 
 class Settings {
@@ -85,35 +108,54 @@ public:
 	void printSettings() {
 		std::cout << "Настройки:\n";
 		std::cout << "Размер поля: " << size << "\n";
-		std::cout << "Количество мин: " << mines << "\n";
+		std::cout << "Количество мин: " << getMinesReference() << "\n";
 		std::cout << "Уровень сложности: " + difficultyLabel << "\n";
+		std::cout << "Выберите действие:\n";
 	}
 
-		void setDifficulty(int* level) {
-			printf("Enter the Difficulty Level\n");
-			printf("Press 0 for BEGINNER (9 * 9 Cells and 10 "
-				"Mines)\n");
-			printf("Press 1 for INTERMEDIATE (16 * 16 Cells and 40 "
-				"Mines)\n");
-			printf("Press 2 for ADVANCED (24 * 24 Cells and 99 "
-				"Mines)\n");
-			int lvl;
-			scanf("%d", &lvl);
-			if (lvl == 0) {
-				size = 9;
-				mines = 10;
-			}
+	void setDifficulty(int* level) {
+		int choice;
+		do {
+			std::cout << "Выберите уровень сложности:\n";
+			std::cout << "0 -> Легкий   (9x9 ячеек, 10 мин)\n";
+			std::cout << "1 -> Средний  (16x16 ячеек, 40 мин)\n";
+			std::cout << "2 -> Сложный  (24x24 ячеек, 99 мин)\n";
+			std::cout << "3 -> Вернуться в главное меню\n";
 
-			if (lvl == 1) {
-				size = 16;
-				mines = 40;
-			}
+			std::cin >> choice;
 
-			if (lvl == 2) {
-				size = 24;
-				mines = 99;
-			}
-			updateDifficultyLabel();
+			if (choice >= 0 && choice <= 2) {
+				if (choice == 0) {
+					size = 9;
+					mines = 10;
+				}
+				else if (choice == 1) {
+					size = 16;
+					mines = 40;
+				}
+				else if (choice == 2) {
+					size = 24;
+					mines = 99;
+				}
+
+				difficulty = choice;
+				updateDifficultyLabel();
+					break;
+				}
+				else if (choice == 3) {
+					// Выход в главное меню
+					*level = -1;  // Флаг для возвращения в главное меню
+					break;
+				}
+				else {
+					std::cerr << "Неверный выбор! Попробуйте снова.\n";
+				}
+			} while (true);
+		}
+
+		// Метод для возврата количества мин через ссылку
+		int& getMinesReference() {
+			return mines;
 		}
 private:
 	void updateDifficultyLabel() {
@@ -136,33 +178,31 @@ private:
 
 class Statistics {
 public:
+	std::string name; // имя игрока
 	int wins;
 	int losses;
 	long totalTime;
 
-	Statistics() : wins(0), losses(0), totalTime(0) {}
+	//Statistics //: wins(0), losses(0), totalTime(0) {}
+
 
 	void saveStatistics() {
 		FILE* file = fopen("statistics.txt", "w");
 		if (file) {
-			fprintf(file, "%d\n%d\n%ld", wins, losses, totalTime);
+			fprintf(file, "%d %d %ld\n", wins, losses, totalTime);
 			fclose(file);
 		}
 	}
 
-	void printStatistics()
-	{
-		printf("Статистика:\n");
-		printf("Победы: %d\n", wins);
-		printf("Поражения: %d\n", losses);
-		printf("Общее время: %ld секунд\n", totalTime);
-
+	void printStatistics() {
+		printf("%-20s %-15s %-15s\n", "Победы:", "Поражения:", "Общее время:");
+		printf("%-20d %-15d %-15ld секунд\n", wins, losses, totalTime);
 	}
 
 	void loadStatistics() {
 		FILE* file = fopen("statistics.txt", "r");
 		if (file) {
-			fscanf(file, "%d\n%d\n%ld", &wins, &losses, &totalTime);
+			fscanf(file, "%d %d %ld", &wins, &losses, &totalTime);
 			fclose(file);
 		}
 	}
@@ -179,7 +219,6 @@ public:
 	// Конструктор с инициализацией полей
 	Cell() : x(0), y(0), isMine(false), isBorder(false), isOpened(false), isFlagged(false), mineCount(0) {}
 };
-
 
 class Field {
 private:
@@ -217,22 +256,15 @@ Settings set;
 
 	//функция для определения края поля
 	bool Border(int x, int y) {
-		if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) {
-			return true; // Если ячейка за пределами поля — это граница
-		}
-		return field[x][y].isBorder;
+		return (x < 0 || x >= set.size || y < 0 || y >= set.size || field[x][y].isBorder);
 	}
 
 	//функция инициализации
 	void initVec(Cell cells[SIZE][SIZE]) {
-		for (int i = 0; i < SIZE; i++) {
-			for (int j = 0; j < SIZE; j++) {
-				if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) {
-					cells[i][j].isBorder = true; // Устанавливаем границы
-				}
-				else {
-					cells[i][j].isBorder = false; // Обычные ячейки
-				}
+		for (int i = 0; i < set.size; i++) {
+			for (int j = 0; j < set.size; j++) {
+				// Устанавливаем границы только для крайних ячеек
+				cells[i][j].isBorder = (i == 0 || j == 0 || i == set.size - 1 || j == set.size - 1);
 			}
 		}
 	}
@@ -240,6 +272,15 @@ Settings set;
 	//функция инициализации поля
 	void initField() {
 		initVec(field);
+	}
+
+	void resetField() {
+		// Очистка старого поля
+		for (int i = 0; i < set.size; i++) {
+			for (int j = 0; j < set.size; j++) {
+				field[i][j].isMine = false; // Или другой индикатор пустой ячейки
+			}
+		}
 	}
 
 	//Маска для ячеек
@@ -271,11 +312,11 @@ Settings set;
 
 				if (mask[j][i] == FLAG) {
 					coutColor('F', 4);
-					continue;
+					//continue;
 				}
 				else if (mask[j][i] == EMPTY && !field[j][i].isOpened) {
 					cout << ".";
-					continue;
+					//continue;
 				}
 				else if (field[j][i].isMine == true) cout << "*";
 				else if (mask[j][i] == BORDER || field[j][i].isBorder) {
@@ -505,6 +546,11 @@ private:
 		Sleep(2000);
 		system("cls");
 	}
+	void sprav() {
+		cout << "Правила игры" << endl;
+		cout << "Игровое поле разделено на клетки, некоторые из которых заминированы.\nДля победы вам нужно открыть все клетки, не попадая на мины.\nВ открытых клетках отображаются цифры, каждая цифра — это количество мин в соседних клетках.\nС помощью этой информации можно определить, в каких клетках содержатся мины.\nПредполагаемую клетку с миной можно пометить флажком с помощью пробела." << endl;
+		system("pause");
+	}
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
 
@@ -512,7 +558,7 @@ public:
 		gotoxy(40, 10);
 		cout << "Вы проиграли!" << endl;
 		Sleep(2000);
-		gotoxy(0, 15);
+
 		system("pause");
 	}
 
@@ -520,29 +566,36 @@ public:
 		gotoxy(40, 10);
 		cout << "Вы победили!";
 		Sleep(2000);
-		gotoxy(0, 15);
+
 		system("pause");
 	}
 
 	void run() {
 		Logo();
+
 		Player player;
 		Menu menu;
 		Field field;
-		//Settings settings;// Начальные настройки
-		Statistics statistics;
+		Statistics statistics{};
 		Keyboard kb;
 		Cursor cs;
+		//HighScores scores;
+
 		int placedMinesUsingPointer;
 		int l;
+		player.setName(player.getUserName());
 		field.set.setDifficulty(&l);
 		while (true) {
+			system("cls"); // Очистка консоли
+			gotoxy(0, 0); // Убедись, что курсор в начале
 			menu.printMenu();
 			if (menu.selectedOption == 0) {
 				system("cls"); // Очистка консоли
+				field.resetField();
 				field.initField();
 				field.initMask();
 				field.Show();
+				//field.placeMines(field.set.mines, cs.getX(), cs.getY(), &placedMinesUsingPointer);
 				time_t start_time = time(NULL);
 
 				cs.move();
@@ -558,7 +611,7 @@ public:
 					case 75: cs.decX(); break;// влево
 					case 72: cs.decY(); break;// вверх
 					case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
-						//нажатие на enter
+					//нажатие на enter
 					case 13:
 						if (firstOpen == true) {
 							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &placedMinesUsingPointer);
@@ -571,16 +624,20 @@ public:
 							if (res == 10) {
 								gameOver();
 								exit = true;
+								firstOpen = true;
+								system("cls"); // Очистка консоли
 							}
 							if (res == 0) {
 								field.fill(cs.getX(), cs.getY());
 							}
 						}
-						player.time = time(NULL) - start_time;
+						player.total_time = time(NULL) - start_time;
 						if (field.checkWin()) {
 							
 							win();
 							exit = true; // Завершаем игру
+							firstOpen = true;
+							system("cls"); // Очистка консоли
 						}
 						break;
 					}
@@ -593,18 +650,26 @@ public:
 				// Обновление статистики после окончания игры
 				if (player.score > 0) statistics.wins++;
 				else statistics.losses++;
-				statistics.totalTime += player.time;
+				statistics.totalTime += player.total_time;
 				statistics.saveStatistics(); // Сохраняем статистику
+				//scores.addRecord(name, player.score, player.time);
 			}
 			else if (menu.selectedOption == 1) {
 				system("cls");
 				field.set.printSettings();
+				field.set.setDifficulty(&l);
 			}
 			else if (menu.selectedOption == 2) {
 				system("cls");
+				printf("Статистика игрока: %s\n", player.name.c_str());  // Жирным шрифтом заголовок
 				statistics.printStatistics();
+				system("pause");
 			}
 			else if (menu.selectedOption == 3) {
+				system("cls");
+				sprav();
+			}
+			else if (menu.selectedOption == 4) {
 				statistics.saveStatistics();
 				exit(0);
 			}
@@ -621,3 +686,8 @@ int main()
 	Game game;
 	game.run();
 }
+
+// топ игроков
+// усовершенствовать класс игрок
+// выбор уровня в настройках игры
+// исправить печать
