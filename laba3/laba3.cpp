@@ -187,10 +187,16 @@ public:
 
 
 	void saveStatistics() {
-		FILE* file = fopen("statistics.txt", "w");
-		if (file) {
-			fprintf(file, "%d %d %ld\n", wins, losses, totalTime);
-			fclose(file);
+		std::ofstream outFile("statistics.txt");
+		if (outFile.is_open()) {
+			outFile << name << "\n";
+			outFile << wins << "\n";
+			outFile << losses << "\n";
+			outFile << totalTime << "\n";
+			outFile.close();
+		}
+		else {
+			std::cerr << "Не удалось открыть файл для записи.\n";
 		}
 	}
 
@@ -200,10 +206,14 @@ public:
 	}
 
 	void loadStatistics() {
-		FILE* file = fopen("statistics.txt", "r");
-		if (file) {
-			fscanf(file, "%d %d %ld", &wins, &losses, &totalTime);
-			fclose(file);
+		std::ifstream inFile("statistics.txt");
+		if (inFile.is_open()) {
+			std::getline(inFile, name);
+			inFile >> wins >> losses >> totalTime;
+			inFile.close();
+		}
+		else {
+			std::cerr << "Не удалось открыть файл для чтения.\n";
 		}
 	}
 };
@@ -452,12 +462,14 @@ Settings set;
 		Show();
 	}
 
-	void flag(int x, int y) {
+	void flag(int x, int y,int *remainMines) {
 			if (mask[x][y] != FLAG) { // Если флаг не установлен
 				mask[x][y] = FLAG; // Устанавливаем флаг
+				remainMines--; // Уменьшаем количество оставшихся мин
 			}
 			else if (mask[x][y] == FLAG) {
 				mask[x][y] = EMPTY; // Убираем флаг, если он уже установлен
+				remainMines++; // Увеличиваем количество оставшихся ми
 			}
 	}
 
@@ -472,6 +484,21 @@ Settings set;
 			return true; // Все ячейки без мин открыты, игрок выиграл
 		}
 
+	void gameOver() {
+		std::cout << "Игра окончена! Вы проиграли.\n";
+		// Показываем все мины
+		for (int x = 0; x < set.size; x++) {
+			for (int y = 0; y < set.size; y++) {
+				if (field[x][y].isMine) {
+					setColor(RED, WHITE);
+					gotoxy(x, y);
+					std::cout << "*"; // Отображаем мину
+				}
+			}
+		}
+		setColor(BLACK, WHITE); // Восстанавливаем цвет
+		system("pause");
+	}
 };
 
 //класс для символа с клавиатуры
@@ -551,16 +578,17 @@ private:
 		cout << "Игровое поле разделено на клетки, некоторые из которых заминированы.\nДля победы вам нужно открыть все клетки, не попадая на мины.\nВ открытых клетках отображаются цифры, каждая цифра — это количество мин в соседних клетках.\nС помощью этой информации можно определить, в каких клетках содержатся мины.\nПредполагаемую клетку с миной можно пометить флажком с помощью пробела." << endl;
 		system("pause");
 	}
+
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
 
-	void gameOver() {
+	/*void gameOver() {
 		gotoxy(40, 10);
 		cout << "Вы проиграли!" << endl;
 		Sleep(2000);
 
 		system("pause");
-	}
+	}*/
 
 	void win() {
 		gotoxy(40, 10);
@@ -569,6 +597,7 @@ public:
 
 		system("pause");
 	}
+
 
 	void run() {
 		Logo();
@@ -579,12 +608,12 @@ public:
 		Statistics statistics{};
 		Keyboard kb;
 		Cursor cs;
-		//HighScores scores;
 
 		int placedMinesUsingPointer;
 		int l;
 		player.setName(player.getUserName());
 		field.set.setDifficulty(&l);
+
 		while (true) {
 			system("cls"); // Очистка консоли
 			gotoxy(0, 0); // Убедись, что курсор в начале
@@ -595,14 +624,20 @@ public:
 				field.initField();
 				field.initMask();
 				field.Show();
-				//field.placeMines(field.set.mines, cs.getX(), cs.getY(), &placedMinesUsingPointer);
+				int remainingMines = field.set.mines;
 				time_t start_time = time(NULL);
+				firstOpen = true; // Сбрасываем флаг
 
 				cs.move();
 				bool exit = false;
+
 				while (!exit) {
 					kb.waitKey();
 					cs.save();
+
+					gotoxy(field.set.size, 0); // Устанавливаем курсор в начало, чтобы таймер выводился там
+					std::cout << std::string(field.set.size, ' ') << "Таймер: " << difftime(time(NULL), start_time) << " секунд" << std::endl;
+					player.total_time = difftime(time(NULL), start_time);
 
 					switch (kb.getKey())
 					{
@@ -610,19 +645,22 @@ public:
 					case 80: cs.incY(); break;// вниз
 					case 75: cs.decX(); break;// влево
 					case 72: cs.decY(); break;// вверх
-					case 32: field.flag(cs.getX(), cs.getY()); field.Show(); break; //
+					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show(); break; //
+					case 27: // ESC для выхода в меню
+						exit = true;
+						break;
 					//нажатие на enter
 					case 13:
 						if (firstOpen == true) {
-							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &placedMinesUsingPointer);
-							std:cout << string(field.set.size, ' ') + "Мин размещено (указатель): " << placedMinesUsingPointer << std::endl;
+							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &remainingMines);
+							std::cout << std::string(field.set.size, ' ') << "Осталось пометить мин: " << remainingMines << std::endl; 
 							field.setDigits();
 							firstOpen = false;
 						}
 						int res = field.openCell(cs.getX(), cs.getY());
 						if (res != 1) {
 							if (res == 10) {
-								gameOver();
+								field.gameOver();
 								exit = true;
 								firstOpen = true;
 								system("cls"); // Очистка консоли
@@ -631,9 +669,7 @@ public:
 								field.fill(cs.getX(), cs.getY());
 							}
 						}
-						player.total_time = time(NULL) - start_time;
 						if (field.checkWin()) {
-							
 							win();
 							exit = true; // Завершаем игру
 							firstOpen = true;
@@ -652,7 +688,6 @@ public:
 				else statistics.losses++;
 				statistics.totalTime += player.total_time;
 				statistics.saveStatistics(); // Сохраняем статистику
-				//scores.addRecord(name, player.score, player.time);
 			}
 			else if (menu.selectedOption == 1) {
 				system("cls");
@@ -687,7 +722,4 @@ int main()
 	game.run();
 }
 
-// топ игроков
-// усовершенствовать класс игрок
-// выбор уровня в настройках игры
-// исправить печать
+
