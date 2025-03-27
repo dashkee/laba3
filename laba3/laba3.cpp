@@ -2,6 +2,7 @@
 //
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
+#include <limits>
 #include <Windows.h>
 #include <vector>
 #include <ctime>
@@ -54,7 +55,7 @@ private:
 	std::vector<std::string> options;
 public:
 	int selectedOption;
-	Menu(){
+	Menu() {
 		options.push_back("Новая игра");
 		options.push_back("Настройки");
 		options.push_back("Статистика");
@@ -68,27 +69,42 @@ public:
 			std::cout << i << ") " << options[i] << "\n";
 		}
 		std::cout << "Выберите пункт меню: ";
-		std::cin >> selectedOption;
+		while (true) {
+			std::cin >> selectedOption;
+			if (std::cin.fail() || selectedOption < 0 || selectedOption >= options.size()) {
+				std::cin.clear(); // Сброс состояния потока
+				std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
+				std::cerr << "Неверный выбор! Пожалуйста, введите номер пункта от 0 до " << options.size() - 1 << ": ";
+			}
+			else {
+				std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
+				break; // Верный ввод
+			}
+		}
 	}
 };
 
 class Player {
 public:
 	std::string name; // имя игрока
-	int score;
-	int w_time, l_time, total_time;
+	int total_time;
 	int wins;
 	int losses;
-	Player() : score(0), l_time(0), total_time(0), wins(0), losses(0) {}
+	Player() : name(""), total_time(0), wins(0), losses(0) {}
 	
 	// Метод для задания имени игрока
 	void setName(const std::string& new_name) {
 		name = new_name;
 	}
+
 	std::string getUserName() {
 		std::string userName;
 		std::cout << "Введите ваше имя: ";
 		std::getline(std::cin, userName);  // Чтение строки с пробелами
+		while (userName.empty() || std::all_of(userName.begin(), userName.end(), ::isspace)) {
+			std::cerr << "Имя не может быть пустым или состоять только из пробелов! Пожалуйста, введите ваше имя снова: ";
+			std::getline(std::cin, userName);
+		}
 		return userName;
 	}
 	const std::string& getName() const {
@@ -103,7 +119,7 @@ public:
 	int difficulty;
 	std::string difficultyLabel;
 
-	Settings() : size(size), mines(mines), difficulty(0) { updateDifficultyLabel(); }
+	Settings() : size(9), mines(10), difficulty(0) { updateDifficultyLabel(); }
 
 	void printSettings() {
 		std::cout << "Настройки:\n";
@@ -123,23 +139,28 @@ public:
 			std::cout << "3 -> Вернуться в главное меню\n";
 
 			std::cin >> choice;
+			if (std::cin.fail() || choice < 0 || choice > 3) {
+				std::cin.clear(); // Сброс состояния потока
+				std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
+				std::cerr << "Неверный выбор! Пожалуйста, введите номер от 0 до 3: ";
+			}
+			else {
+				if (choice >= 0 && choice <= 2) {
+					if (choice == 0) {
+						size = 9;
+						mines = 10;
+					}
+					else if (choice == 1) {
+						size = 16;
+						mines = 40;
+					}
+					else if (choice == 2) {
+						size = 24;
+						mines = 99;
+					}
 
-			if (choice >= 0 && choice <= 2) {
-				if (choice == 0) {
-					size = 9;
-					mines = 10;
-				}
-				else if (choice == 1) {
-					size = 16;
-					mines = 40;
-				}
-				else if (choice == 2) {
-					size = 24;
-					mines = 99;
-				}
-
-				difficulty = choice;
-				updateDifficultyLabel();
+					difficulty = choice;
+					updateDifficultyLabel();
 					break;
 				}
 				else if (choice == 3) {
@@ -150,6 +171,7 @@ public:
 				else {
 					std::cerr << "Неверный выбор! Попробуйте снова.\n";
 				}
+			}
 			} while (true);
 		}
 
@@ -183,17 +205,14 @@ public:
 	int losses;
 	long totalTime;
 
-	//Statistics //: wins(0), losses(0), totalTime(0) {}
+	Statistics() : wins(0), losses(0), totalTime(0), name("Игрок") {}
 
 
 	void saveStatistics() {
 		std::ofstream outFile("statistics.txt");
 		if (outFile.is_open()) {
-			outFile << name << "\n";
-			outFile << wins << "\n";
-			outFile << losses << "\n";
-			outFile << totalTime << "\n";
-			outFile.close();
+			outFile << name << "\n" << wins << "\n" << losses << "\n" << totalTime << "\n";
+            outFile.close();
 		}
 		else {
 			std::cerr << "Не удалось открыть файл для записи.\n";
@@ -208,13 +227,40 @@ public:
 	void loadStatistics() {
 		std::ifstream inFile("statistics.txt");
 		if (inFile.is_open()) {
-			std::getline(inFile, name);
-			inFile >> wins >> losses >> totalTime;
+			std::string line;
+			int lineNumber = 0;
+			while (std::getline(inFile, line)) {
+				switch (lineNumber) {
+				case 0: name = line; break;
+				case 1: wins = std::stoi(line); break;
+				case 2: losses = std::stoi(line); break;
+				case 3: totalTime = std::stol(line); break;
+				default: break;
+				}
+				lineNumber++;
+			}
 			inFile.close();
 		}
 		else {
-			std::cerr << "Не удалось открыть файл для чтения.\n";
+			std::cerr << "Ошибка: Не удалось открыть файл для чтения. Статистика будет сброшена.\n";
+			resetStatistics(name);
 		}
+	}
+
+	void resetStatistics(std::string Name) {
+		wins = 0;
+		losses = 0;
+		totalTime = 0;
+		name = Name; // Установим имя по умолчанию
+	}
+
+	std::string getStatName() {
+		std::ifstream inFile("statistics.txt");
+		if (inFile.is_open()) {
+			inFile >> name;
+			inFile.close();
+		}
+		return name;
 	}
 };
 
@@ -462,21 +508,21 @@ Settings set;
 		Show();
 	}
 
-	void flag(int x, int y,int *remainMines) {
-			if (mask[x][y] != FLAG) { // Если флаг не установлен
-				mask[x][y] = FLAG; // Устанавливаем флаг
-				remainMines--; // Уменьшаем количество оставшихся мин
-			}
-			else if (mask[x][y] == FLAG) {
-				mask[x][y] = EMPTY; // Убираем флаг, если он уже установлен
-				remainMines++; // Увеличиваем количество оставшихся ми
-			}
+	void flag(int x, int y, int* remainMines) {
+		if (mask[x][y] != FLAG) { // Если флаг не установлен
+			mask[x][y] = FLAG; // Устанавливаем флаг
+			(*remainMines)--; // Уменьшаем количество оставшихся мин
+		}
+		else { // Если флаг уже установлен
+			mask[x][y] = EMPTY; // Убираем флаг
+			(*remainMines)++; // Увеличиваем количество оставшихся мин
+		}
 	}
 
 	bool checkWin() {
 			for (int x = 0; x < set.size; x++) {
 				for (int y = 0; y < set.size; y++) {
-					if (field[x][y].isMine && mask[x][y] == EMPTY) {
+					if (!field[x][y].isMine && mask[x][y] == EMPTY) {
 						return false; // Если есть закрытая ячейка без мины, игрок не выиграл
 					}
 				}
@@ -485,7 +531,6 @@ Settings set;
 		}
 
 	void gameOver() {
-		std::cout << "Игра окончена! Вы проиграли.\n";
 		// Показываем все мины
 		for (int x = 0; x < set.size; x++) {
 			for (int y = 0; y < set.size; y++) {
@@ -496,8 +541,10 @@ Settings set;
 				}
 			}
 		}
-		setColor(BLACK, WHITE); // Восстанавливаем цвет
+		gotoxy(40, 10);
+		std::cout << "Игра окончена! Вы проиграли.\n";
 		system("pause");
+		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
 };
 
@@ -573,33 +620,28 @@ private:
 		Sleep(2000);
 		system("cls");
 	}
-	void sprav() {
-		cout << "Правила игры" << endl;
-		cout << "Игровое поле разделено на клетки, некоторые из которых заминированы.\nДля победы вам нужно открыть все клетки, не попадая на мины.\nВ открытых клетках отображаются цифры, каждая цифра — это количество мин в соседних клетках.\nС помощью этой информации можно определить, в каких клетках содержатся мины.\nПредполагаемую клетку с миной можно пометить флажком с помощью пробела." << endl;
-		system("pause");
-	}
-
+	void showInstructions() {
+        std::cout << "Правила игры" << std::endl;
+        std::cout << "Игровое поле разделено на клетки, некоторые из которых заминированы.\n"
+                     "Для победы вам нужно открыть все клетки, не попадая на мины.\n"
+                     "В открытых клетках отображаются цифры, каждая цифра — это количество мин в соседних клетках.\n"
+                     "С помощью этой информации можно определить, в каких клетках содержатся мины.\n"
+                     "Предполагаемую клетку с миной можно пометить флажком с помощью пробела." << std::endl;
+        system("pause");
+    }
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
-
-	/*void gameOver() {
-		gotoxy(40, 10);
-		cout << "Вы проиграли!" << endl;
-		Sleep(2000);
-
-		system("pause");
-	}*/
 
 	void win() {
 		gotoxy(40, 10);
 		cout << "Вы победили!";
 		Sleep(2000);
-
-		system("pause");
+ 		system("pause");
+		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
 
-
 	void run() {
+
 		Logo();
 
 		Player player;
@@ -608,10 +650,30 @@ public:
 		Statistics statistics{};
 		Keyboard kb;
 		Cursor cs;
-
-		int placedMinesUsingPointer;
 		int l;
 		player.setName(player.getUserName());
+
+		if (player.getName() == statistics.getStatName()) {
+			int option;
+			std::cout << "Имя совпадает с именем игрока в статистике. Вы хотите:\n";
+			std::cout << "1. Восстановить статистику из файла\n";
+			std::cout << "2. Создать новую статистику и начать заново\n";
+			while (true) {
+				std::cin >> option;
+				if (std::cin.fail() || option <= 0 || option >= 3) {
+					std::cin.clear(); // Сброс состояния потока
+					std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
+					std::cerr << "Неверный выбор! Пожалуйста, введите номер пункта(1 или 2) " << ": ";
+				}
+				else {
+					std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
+					break; // Верный ввод
+				}
+			}
+		}
+		else if (player.getName() != statistics.getStatName()) {
+			statistics.resetStatistics(player.getName());
+		}
 		field.set.setDifficulty(&l);
 
 		while (true) {
@@ -625,6 +687,7 @@ public:
 				field.initMask();
 				field.Show();
 				int remainingMines = field.set.mines;
+				int placedMinesUsingPointer = 0;
 				time_t start_time = time(NULL);
 				firstOpen = true; // Сбрасываем флаг
 
@@ -637,15 +700,23 @@ public:
 
 					gotoxy(field.set.size, 0); // Устанавливаем курсор в начало, чтобы таймер выводился там
 					std::cout << std::string(field.set.size, ' ') << "Таймер: " << difftime(time(NULL), start_time) << " секунд" << std::endl;
+					gotoxy(0, field.set.size);
+					if (remainingMines < 10) {
+						std::cout << "Осталось пометить мин: " << remainingMines << " " << std::endl; // Для однозначного числа
+					}
+					else {
+						std::cout << "Осталось пометить мин: " << remainingMines << std::endl; // Для двузначного числа
+					}
 					player.total_time = difftime(time(NULL), start_time);
-
+					
 					switch (kb.getKey())
 					{
 					case 77: cs.incX(); break;// вправо
 					case 80: cs.incY(); break;// вниз
 					case 75: cs.decX(); break;// влево
 					case 72: cs.decY(); break;// вверх
-					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show(); break; //
+					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show(); 
+						break; //
 					case 27: // ESC для выхода в меню
 						exit = true;
 						break;
@@ -653,13 +724,14 @@ public:
 					case 13:
 						if (firstOpen == true) {
 							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &remainingMines);
-							std::cout << std::string(field.set.size, ' ') << "Осталось пометить мин: " << remainingMines << std::endl; 
 							field.setDigits();
 							firstOpen = false;
 						}
+						
 						int res = field.openCell(cs.getX(), cs.getY());
 						if (res != 1) {
 							if (res == 10) {
+								statistics.losses++;
 								field.gameOver();
 								exit = true;
 								firstOpen = true;
@@ -670,6 +742,7 @@ public:
 							}
 						}
 						if (field.checkWin()) {
+							statistics.wins++;
 							win();
 							exit = true; // Завершаем игру
 							firstOpen = true;
@@ -683,9 +756,6 @@ public:
 					}
 					cs.move();
 				}
-				// Обновление статистики после окончания игры
-				if (player.score > 0) statistics.wins++;
-				else statistics.losses++;
 				statistics.totalTime += player.total_time;
 				statistics.saveStatistics(); // Сохраняем статистику
 			}
@@ -702,7 +772,7 @@ public:
 			}
 			else if (menu.selectedOption == 3) {
 				system("cls");
-				sprav();
+				showInstructions();
 			}
 			else if (menu.selectedOption == 4) {
 				statistics.saveStatistics();
@@ -721,5 +791,3 @@ int main()
 	Game game;
 	game.run();
 }
-
-
