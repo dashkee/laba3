@@ -1,5 +1,5 @@
 ﻿// laba3.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
+
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <limits>
@@ -542,7 +542,7 @@ Settings set;
 			}
 		}
 		gotoxy(40, 10);
-		std::cout << "Игра окончена! Вы проиграли.\n";
+		std::cout << "Игра окончена! Вы проиграли.";
 		system("pause");
 		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
@@ -635,7 +635,6 @@ public:
 	void win() {
 		gotoxy(40, 10);
 		cout << "Вы победили!";
-		Sleep(2000);
  		system("pause");
 		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
@@ -647,7 +646,7 @@ public:
 		Player player;
 		Menu menu;
 		Field field;
-		Statistics statistics{};
+		Statistics statistics;
 		Keyboard kb;
 		Cursor cs;
 		int l;
@@ -669,6 +668,12 @@ public:
 					std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
 					break; // Верный ввод
 				}
+			}
+			if (option == 1) {
+				statistics.loadStatistics();
+			}
+			else if (option == 2) {
+				statistics.resetStatistics(player.getName()); // Обнуляем статистику
 			}
 		}
 		else if (player.getName() != statistics.getStatName()) {
