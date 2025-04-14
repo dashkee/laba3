@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
-
+#include <memory>
 
 #define SIZE 25
 #define MINES 99
@@ -50,12 +50,20 @@ void setColor(int background, int text)
 	SetConsoleTextAttribute(hStdOut, (WORD)((background << 4) | text));
 }
 
-class Menu {
+class GameEntity {
+public:
+	GameEntity() {
+		// Конструктор базового класса
+		std::cout << "Инициализация прошла успешно." << std::endl;
+	}
+};
+
+class Menu : public GameEntity {
 private:
 	std::vector<std::string> options;
 public:
 	int selectedOption;
-	Menu() {
+	Menu() : GameEntity() {
 		options.push_back("Новая игра");
 		options.push_back("Настройки");
 		options.push_back("Статистика");
@@ -84,13 +92,13 @@ public:
 	}
 };
 
-class Player {
+class Player : public GameEntity {
 public:
 	std::string name; // имя игрока
 	int total_time;
 	int wins;
 	int losses;
-	Player() : name(""), total_time(0), wins(0), losses(0) {}
+	Player() : GameEntity(), name(""), total_time(0), wins(0), losses(0) {}
 	
 	// Метод для задания имени игрока
 	void setName(const std::string& new_name) {
@@ -199,20 +207,47 @@ private:
 };
 
 class Statistics {
-public:
+private:
 	std::string name; // имя игрока
 	int wins;
 	int losses;
 	long totalTime;
-
+public:
 	Statistics() : wins(0), losses(0), totalTime(0), name("Игрок") {}
 
+	// Конструктор копирования
+	Statistics(const Statistics& other) {
+		this->name = other.name;
+		this->wins = other.wins;
+		this->losses = other.losses;
+		this->totalTime = other.totalTime;
+	}
+
+	// Оператор присваивания
+	Statistics& operator=(const Statistics& other) {
+		if (this == &other) {
+			return *this; // Проверка на самоприсваивание
+		}
+		this->name = other.name;
+		this->wins = other.wins;
+		this->losses = other.losses;
+		this->totalTime = other.totalTime;
+		return *this;
+	}
+
+	// Перегрузка оператора сравнения
+	bool operator==(const Statistics& other) const {
+		return (this->wins == other.wins) && (this->losses == other.losses) && (this->totalTime == other.totalTime);
+	}
+
+	// Публичные методы для доступа к приватным полям
+	void TotalTime(long num) { this->totalTime += num; }
 
 	void saveStatistics() {
 		std::ofstream outFile("statistics.txt");
 		if (outFile.is_open()) {
-			outFile << name << "\n" << wins << "\n" << losses << "\n" << totalTime << "\n";
-            outFile.close();
+			outFile << this->name << "\n" << this->wins << "\n" << this->losses << "\n" << this->totalTime << "\n";
+			outFile.close();
 		}
 		else {
 			std::cerr << "Не удалось открыть файл для записи.\n";
@@ -221,48 +256,66 @@ public:
 
 	void printStatistics() {
 		printf("%-20s %-15s %-15s\n", "Победы:", "Поражения:", "Общее время:");
-		printf("%-20d %-15d %-15ld секунд\n", wins, losses, totalTime);
+		printf("%-20d %-15d %-15ld секунд\n", this->wins, this->losses, this->totalTime);
 	}
 
 	void loadStatistics() {
-		std::ifstream inFile("statistics.txt");
-		if (inFile.is_open()) {
-			std::string line;
-			int lineNumber = 0;
-			while (std::getline(inFile, line)) {
-				switch (lineNumber) {
-				case 0: name = line; break;
-				case 1: wins = std::stoi(line); break;
-				case 2: losses = std::stoi(line); break;
-				case 3: totalTime = std::stol(line); break;
-				default: break;
-				}
-				lineNumber++;
+		try {
+			std::ifstream inFile("statistics.txt");
+			if (!inFile.is_open()) {
+				throw std::runtime_error("Не удалось открыть файл для чтения.");
 			}
+
+			std::getline(inFile, this->name);
+			inFile >> this->wins >> this->losses >> this->totalTime;
+
+			if (inFile.fail()) {
+				throw std::runtime_error("Ошибка при чтении данных из файла.");
+			}
+
 			inFile.close();
 		}
-		else {
-			std::cerr << "Ошибка: Не удалось открыть файл для чтения. Статистика будет сброшена.\n";
-			resetStatistics(name);
+		catch (const std::exception& e) {
+			std::cerr << "Произошла ошибка: " << e.what() << std::endl;
+			throw; // Выбрасываем исключение дальше для обработки выше
 		}
 	}
 
 	void resetStatistics(std::string Name) {
-		wins = 0;
-		losses = 0;
-		totalTime = 0;
-		name = Name; // Установим имя по умолчанию
+		this->wins = 0;
+		this->losses = 0;
+		this->totalTime = 0;
+		this->name = Name; // Установим имя по умолчанию
 	}
 
 	std::string getStatName() {
 		std::ifstream inFile("statistics.txt");
 		if (inFile.is_open()) {
-			inFile >> name;
+			inFile >> this->name;
 			inFile.close();
 		}
-		return name;
+		return this->name;
 	}
+
+	// Получаем указатель на количество побед
+  int* getWinsPointer() {
+      return &wins;
+  }
+
+  // Получаем указатель на количество поражений
+  int* getLossesPointer() {
+      return &losses;
+  }
+
+	// Дружественная функция для вывода статистики
+	friend void displayStatistics(const Statistics& stats);
 };
+
+// Дружественная функция
+void displayStatistics(const Statistics& stats) {
+	printf("%-20s %-15s %-15s\n", "Победы:", "Поражения:", "Общее время:");
+	printf("%-20d %-15d %-15ld секунд\n", stats.wins, stats.losses, stats.totalTime);
+}
 
 class Cell {
 public:
@@ -288,9 +341,11 @@ private:
 
 public:
 Settings set;
+static int objectCount;
 	Field() {
 		initMask();
 		initField();
+		objectCount++;  // Увеличиваем счетчик при создании нового объекта
 	}
 	//функция открытия ячейки
 	int openCell(int x, int y) {
@@ -308,6 +363,11 @@ Settings set;
 			Show(); // Обновляем отображение
 		}
 		return result; // Возвращаем результат
+	}
+
+	// Статический метод для получения количества объектов
+	static int getObjectCount() {
+		return objectCount;
 	}
 
 	//функция для определения края поля
@@ -629,9 +689,12 @@ private:
                      "Предполагаемую клетку с миной можно пометить флажком с помощью пробела." << std::endl;
         system("pause");
     }
+	std::unique_ptr<Menu> menu;
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
-
+	Game() {
+		menu = std::make_unique<Menu>(); // Инициализируем меню
+	}
 	void win() {
 		gotoxy(40, 10);
 		cout << "Вы победили!";
@@ -644,9 +707,9 @@ public:
 		Logo();
 
 		Player player;
-		Menu menu;
+		//Menu menu;
 		Field field;
-		Statistics statistics;
+		Statistics statistics, stats2;
 		Keyboard kb;
 		Cursor cs;
 		int l;
@@ -671,6 +734,7 @@ public:
 			}
 			if (option == 1) {
 				statistics.loadStatistics();
+				stats2 = statistics; // Используется конструктор копирования
 			}
 			else if (option == 2) {
 				statistics.resetStatistics(player.getName()); // Обнуляем статистику
@@ -684,8 +748,8 @@ public:
 		while (true) {
 			system("cls"); // Очистка консоли
 			gotoxy(0, 0); // Убедись, что курсор в начале
-			menu.printMenu();
-			if (menu.selectedOption == 0) {
+			menu->printMenu();
+			if (menu->selectedOption == 0) {
 				system("cls"); // Очистка консоли
 				field.resetField();
 				field.initField();
@@ -736,7 +800,7 @@ public:
 						int res = field.openCell(cs.getX(), cs.getY());
 						if (res != 1) {
 							if (res == 10) {
-								statistics.losses++;
+								*(statistics.getLossesPointer()) += 1;
 								field.gameOver();
 								exit = true;
 								firstOpen = true;
@@ -747,7 +811,7 @@ public:
 							}
 						}
 						if (field.checkWin()) {
-							statistics.wins++;
+							*(statistics.getWinsPointer()) += 1; // Увеличиваем количество побед на 1
 							win();
 							exit = true; // Завершаем игру
 							firstOpen = true;
@@ -761,25 +825,31 @@ public:
 					}
 					cs.move();
 				}
-				statistics.totalTime += player.total_time;
+				statistics.TotalTime(player.total_time);
 				statistics.saveStatistics(); // Сохраняем статистику
 			}
-			else if (menu.selectedOption == 1) {
+			else if (menu->selectedOption == 1) {
 				system("cls");
 				field.set.printSettings();
 				field.set.setDifficulty(&l);
 			}
-			else if (menu.selectedOption == 2) {
+			else if (menu->selectedOption == 2) {
 				system("cls");
 				printf("Статистика игрока: %s\n", player.name.c_str());  // Жирным шрифтом заголовок
-				statistics.printStatistics();
+				displayStatistics(statistics);
+				if (statistics == stats2) { // Сравниваем статистики
+					std::cout << "Статистики равны. Вы ничего не изменили в статистике!" << std::endl;
+				}
+				else {
+					std::cout << "Статистики не равны. За игру вы изменили статистику!" << std::endl;
+				}
 				system("pause");
 			}
-			else if (menu.selectedOption == 3) {
+			else if (menu->selectedOption == 3) {
 				system("cls");
 				showInstructions();
 			}
-			else if (menu.selectedOption == 4) {
+			else if (menu->selectedOption == 4) {
 				statistics.saveStatistics();
 				exit(0);
 			}
