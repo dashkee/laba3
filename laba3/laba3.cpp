@@ -329,6 +329,7 @@ public:
 	Cell() : x(0), y(0), isMine(false), isBorder(false), isOpened(false), isFlagged(false), mineCount(0) {}
 };
 
+
 class Field {
 private:
 	const int EMPTY = 0; // Пустая ячейка
@@ -607,6 +608,7 @@ static int objectCount;
 		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
 };
+int Field::objectCount = 0;
 
 //класс для символа с клавиатуры
 class Keyboard {
@@ -674,6 +676,8 @@ public:
 
 class Game {
 private:
+	std::unique_ptr<Menu> menu;
+
 	void Logo() {
 		gotoxy(40,10);
 		cout << "Сапер" << endl;
@@ -689,17 +693,17 @@ private:
                      "Предполагаемую клетку с миной можно пометить флажком с помощью пробела." << std::endl;
         system("pause");
     }
-	std::unique_ptr<Menu> menu;
 	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
 public:
-	Game() {
-		menu = std::make_unique<Menu>(); // Инициализируем меню
-	}
+	Game() : menu(std::make_unique<Menu>()) {}
 	void win() {
 		gotoxy(40, 10);
 		cout << "Вы победили!";
  		system("pause");
 		setColor(BLACK, WHITE); // Восстанавливаем цвет
+	}
+	std::shared_ptr<Field> createField() {
+		return std::make_shared<Field>();
 	}
 
 	void run() {
@@ -708,7 +712,7 @@ public:
 
 		Player player;
 		//Menu menu;
-		Field field;
+		std::shared_ptr<Field> field = createField();
 		Statistics statistics, stats2;
 		Keyboard kb;
 		Cursor cs;
@@ -743,7 +747,7 @@ public:
 		else if (player.getName() != statistics.getStatName()) {
 			statistics.resetStatistics(player.getName());
 		}
-		field.set.setDifficulty(&l);
+		field->set.setDifficulty(&l);
 
 		while (true) {
 			system("cls"); // Очистка консоли
@@ -751,11 +755,11 @@ public:
 			menu->printMenu();
 			if (menu->selectedOption == 0) {
 				system("cls"); // Очистка консоли
-				field.resetField();
-				field.initField();
-				field.initMask();
-				field.Show();
-				int remainingMines = field.set.mines;
+				field->resetField();
+				field->initField();
+				field->initMask();
+				field->Show();
+				int remainingMines = field->set.mines;
 				int placedMinesUsingPointer = 0;
 				time_t start_time = time(NULL);
 				firstOpen = true; // Сбрасываем флаг
@@ -767,9 +771,9 @@ public:
 					kb.waitKey();
 					cs.save();
 
-					gotoxy(field.set.size, 0); // Устанавливаем курсор в начало, чтобы таймер выводился там
-					std::cout << std::string(field.set.size, ' ') << "Таймер: " << difftime(time(NULL), start_time) << " секунд" << std::endl;
-					gotoxy(0, field.set.size);
+					gotoxy(field->set.size, 0); // Устанавливаем курсор в начало, чтобы таймер выводился там
+					std::cout << std::string(field->set.size, ' ') << "Таймер: " << difftime(time(NULL), start_time) << " секунд" << std::endl;
+					gotoxy(0, field->set.size);
 					if (remainingMines < 10) {
 						std::cout << "Осталось пометить мин: " << remainingMines << " " << std::endl; // Для однозначного числа
 					}
@@ -784,7 +788,7 @@ public:
 					case 80: cs.incY(); break;// вниз
 					case 75: cs.decX(); break;// влево
 					case 72: cs.decY(); break;// вверх
-					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show(); 
+					case 32: field->flag(cs.getX(), cs.getY(), &remainingMines); field->Show();
 						break; //
 					case 27: // ESC для выхода в меню
 						exit = true;
@@ -792,25 +796,25 @@ public:
 					//нажатие на enter
 					case 13:
 						if (firstOpen == true) {
-							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &remainingMines);
-							field.setDigits();
+							field->placeMines(field->set.mines, cs.getX(), cs.getY(), &remainingMines);
+							field->setDigits();
 							firstOpen = false;
 						}
 						
-						int res = field.openCell(cs.getX(), cs.getY());
+						int res = field->openCell(cs.getX(), cs.getY());
 						if (res != 1) {
 							if (res == 10) {
 								*(statistics.getLossesPointer()) += 1;
-								field.gameOver();
+								field->gameOver();
 								exit = true;
 								firstOpen = true;
 								system("cls"); // Очистка консоли
 							}
 							if (res == 0) {
-								field.fill(cs.getX(), cs.getY());
+								field->fill(cs.getX(), cs.getY());
 							}
 						}
-						if (field.checkWin()) {
+						if (field->checkWin()) {
 							*(statistics.getWinsPointer()) += 1; // Увеличиваем количество побед на 1
 							win();
 							exit = true; // Завершаем игру
@@ -819,7 +823,7 @@ public:
 						}
 						break;
 					}
-					if (field.Border(cs.getX(), cs.getY()))
+					if (field->Border(cs.getX(), cs.getY()))
 					{
 						cs.undo();
 					}
@@ -830,8 +834,8 @@ public:
 			}
 			else if (menu->selectedOption == 1) {
 				system("cls");
-				field.set.printSettings();
-				field.set.setDifficulty(&l);
+				field->set.printSettings();
+				field->set.setDifficulty(&l);
 			}
 			else if (menu->selectedOption == 2) {
 				system("cls");
