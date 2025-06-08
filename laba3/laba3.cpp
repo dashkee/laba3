@@ -1,22 +1,4 @@
-﻿// laba3.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-
-
-/*
-Производные классы: Добавлены AdvancedField и AIPlayer.
-Модификатор protected: Добавлен в класс Field.
-Перегрузка метода: Переопределен метод show в AdvancedField.
-Виртуальные функции: Добавлены в GameEntity и Player.
-Клонирование: Реализовано в Player и AIPlayer.
-Вызов конструктора базового класса: Добавлен в AdvancedField.
-Абстрактный класс: Создан IEntity и его реализация.
-Оператор присваивания: Перегружен в AIPlayer.
-Запрет конструктора копирования: Добавлен в Player.
-Виртуальный деструктор: Добавлен в GameEntity.
-*/
-
-
-
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <limits>
 #include <Windows.h>
@@ -68,20 +50,11 @@ void setColor(int background, int text)
 
 class GameEntity {
 public:
+public:
 	GameEntity() {
-		// Конструктор базового класса
 		std::cout << "Инициализация прошла успешно." << std::endl;
 	}
-	virtual void displayInfo() { // Виртуальная функция
-		std::cout << "Информация о базовой сущности." << std::endl;
-	}
-
-	void callDisplayInfo() { // Невиртуальная функция вызывает виртуальную
-		displayInfo();
-	}
-	virtual ~GameEntity() {
-		std::cout << "Деструктор базового класса." << std::endl;
-	}
+	virtual ~GameEntity() = default; // Виртуальный деструктор для корректного наследования
 };
 
 class Menu : public GameEntity {
@@ -120,65 +93,33 @@ public:
 
 class Player : public GameEntity {
 public:
-	std::string name; // имя игрока
+	std::string name;
 	int total_time;
 	int wins;
 	int losses;
-	void displayInfo() override { // Переопределение виртуальной функции
-		std::cout << "Информация о игроке." << std::endl;
-	}
-	Player() : GameEntity(), name(""), total_time(0), wins(0), losses(0) {
-		playerCount++;
-	}
-	//virtual Player* clone() const { // Поверхностное клонирование
-		//return new Player(*this);
-	//}
-	const std::string& getNameReference() {
-		return name;
-	}
-	~Player() override {
-		std::cout << "Деструктор производного класса." << std::endl;
-	}
-	friend void displayPlayerName(const Player& player);
-	Player(const Player&) = delete; // Запрет конструктора копирования
-	// За пределами класса Player добавить определение функции:
-	void displayPlayerName(const Player& player) {
-		std::cout << "Имя игрока: " << player.name << std::endl;
-	}
-	void updateTotalTime(long time) {
-		this->total_time += time;
-	}
-	static int playerCount;
 
-	static int getPlayerCount() {
-		return playerCount;
-	}
+	Player() : GameEntity(), name(""), total_time(0), wins(0), losses(0) {}
 
-	// Метод для задания имени игрока
 	void setName(const std::string& new_name) {
 		name = new_name;
 	}
-	std::string getFullInfo() {
-		return name + " - Время: " + std::to_string(total_time) + " секунд";
-	}
-	//Player(const Player& other) : GameEntity(), name(other.name), total_time(other.total_time), wins(other.wins), losses(other.losses) {}
 
 	std::string getUserName() {
 		std::string userName;
 		std::cout << "Введите ваше имя: ";
-		std::getline(std::cin, userName);  // Чтение строки с пробелами
+		std::getline(std::cin, userName);
 		while (userName.empty() || std::all_of(userName.begin(), userName.end(), ::isspace)) {
 			std::cerr << "Имя не может быть пустым или состоять только из пробелов! Пожалуйста, введите ваше имя снова: ";
 			std::getline(std::cin, userName);
 		}
 		return userName;
 	}
+
 	const std::string& getName() const {
 		return name;
 	}
 };
 
-int Player::playerCount = 0;
 class Settings {
 public:
 	int size;
@@ -273,6 +214,7 @@ std::ostream& operator<<(std::ostream& os, const Player& player) {
 bool operator<(const Player& lhs, const Player& rhs) {
 	return lhs.total_time < rhs.total_time;
 }
+
 class Statistics {
 private:
 	std::string name; // имя игрока
@@ -683,7 +625,9 @@ public:
 		setColor(BLACK, WHITE); // Восстанавливаем цвет
 	}
 };
+
 int Field::objectCount = 0; // Определение статической переменной
+
 //класс для символа с клавиатуры
 class Keyboard {
 private:
@@ -700,11 +644,13 @@ public:
 		return ch;
 	}
 };
+
 Statistics operator+(const Statistics& lhs, long time) {
 	Statistics result = lhs;
 	result.setTotalTime(result.getTotalTime() + time); // Используем геттер и сеттер
 	return result;
 }
+
 // класс для курсора
 class Cursor {
 private:
@@ -754,14 +700,13 @@ public:
 
 class Game {
 private:
-	std::unique_ptr<Menu> menu;
-
 	void Logo() {
 		gotoxy(40, 10);
-		cout << "Сапер" << endl;
+		std::cout << "Сапер" << std::endl;
 		Sleep(2000);
 		system("cls");
 	}
+
 	void showInstructions() {
 		std::cout << "Правила игры" << std::endl;
 		std::cout << "Игровое поле разделено на клетки, некоторые из которых заминированы.\n"
@@ -772,26 +717,25 @@ private:
 		system("pause");
 	}
 
-	bool firstOpen = true; // Флаг для отслеживания первой открытой ячейки
-public:
+	std::unique_ptr<Menu> menu;
+	bool firstOpen = true;
 
-	Game() : menu(std::make_unique<Menu>()) {}
+public:
+	Game() {
+		menu = std::make_unique<Menu>();
+	}
+
 	void win() {
 		gotoxy(40, 10);
-		cout << "Вы победили!";
+		std::cout << "Вы победили!";
 		system("pause");
-		setColor(BLACK, WHITE); // Восстанавливаем цвет
-	}
-	std::shared_ptr<Field> createField() {
-		return std::make_shared<Field>();
+		setColor(BLACK, WHITE);
 	}
 
 	void run() {
-
 		Logo();
 
 		Player player;
-		//Menu menu;
 		Field field;
 		Statistics statistics, stats2;
 		Keyboard kb;
@@ -807,34 +751,34 @@ public:
 			while (true) {
 				std::cin >> option;
 				if (std::cin.fail() || option <= 0 || option >= 3) {
-					std::cin.clear(); // Сброс состояния потока
-					std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
-					std::cerr << "Неверный выбор! Пожалуйста, введите номер пункта(1 или 2) " << ": ";
+					std::cin.clear();
+					std::cin.ignore(10000, '\n');
+					std::cerr << "Неверный выбор! Пожалуйста, введите номер пункта (1 или 2): ";
 				}
 				else {
-					std::cin.ignore(10000, '\n'); // Игнорируем до 10000 символов или до новой строки
-					break; // Верный ввод
+					std::cin.ignore(10000, '\n');
+					break;
 				}
 			}
 			if (option == 1) {
 				statistics.loadStatistics();
-				stats2 = statistics; // Используется конструктор копирования
+				stats2 = statistics;
 			}
 			else if (option == 2) {
-				statistics.resetStatistics(player.getName()); // Обнуляем статистику
+				statistics.resetStatistics(player.getName());
 			}
 		}
-		else if (player.getName() != statistics.getStatName()) {
+		else {
 			statistics.resetStatistics(player.getName());
 		}
 		field.set.setDifficulty(&l);
 
 		while (true) {
-			system("cls"); // Очистка консоли
-			gotoxy(0, 0); // Убедись, что курсор в начале
+			system("cls");
+			gotoxy(0, 0);
 			menu->printMenu();
 			if (menu->selectedOption == 0) {
-				system("cls"); // Очистка консоли
+				system("cls");
 				field.resetField();
 				field.initField();
 				field.initMask();
@@ -842,7 +786,7 @@ public:
 				int remainingMines = field.set.mines;
 				int placedMinesUsingPointer = 0;
 				time_t start_time = time(NULL);
-				firstOpen = true; // Сбрасываем флаг
+				firstOpen = true;
 
 				cs.move();
 				bool exit = false;
@@ -851,36 +795,30 @@ public:
 					kb.waitKey();
 					cs.save();
 
-					gotoxy(field.set.size, 0); // Устанавливаем курсор в начало, чтобы таймер выводился там
+					gotoxy(field.set.size, 0);
 					std::cout << std::string(field.set.size, ' ') << "Таймер: " << difftime(time(NULL), start_time) << " секунд" << std::endl;
 					gotoxy(0, field.set.size);
 					if (remainingMines < 10) {
-						std::cout << "Осталось пометить мин: " << remainingMines << " " << std::endl; // Для однозначного числа
+						std::cout << "Осталось пометить мин: " << remainingMines << " " << std::endl;
 					}
 					else {
-						std::cout << "Осталось пометить мин: " << remainingMines << std::endl; // Для двузначного числа
+						std::cout << "Осталось пометить мин: " << remainingMines << std::endl;
 					}
 					player.total_time = difftime(time(NULL), start_time);
 
-					switch (kb.getKey())
-					{
-					case 77: cs.incX(); break;// вправо
-					case 80: cs.incY(); break;// вниз
-					case 75: cs.decX(); break;// влево
-					case 72: cs.decY(); break;// вверх
-					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show();
-						break; //
-					case 27: // ESC для выхода в меню
-						exit = true;
-						break;
-						//нажатие на enter
+					switch (kb.getKey()) {
+					case 77: cs.incX(); break; // Вправо
+					case 80: cs.incY(); break; // Вниз
+					case 75: cs.decX(); break; // Влево
+					case 72: cs.decY(); break; // Вверх
+					case 32: field.flag(cs.getX(), cs.getY(), &remainingMines); field.Show(); break; // Пробел
+					case 27: exit = true; break; // ESC
 					case 13:
-						if (firstOpen == true) {
+						if (firstOpen) {
 							field.placeMines(field.set.mines, cs.getX(), cs.getY(), &remainingMines);
 							field.setDigits();
 							firstOpen = false;
 						}
-
 						int res = field.openCell(cs.getX(), cs.getY());
 						if (res != 1) {
 							if (res == 10) {
@@ -888,29 +826,28 @@ public:
 								field.gameOver();
 								exit = true;
 								firstOpen = true;
-								system("cls"); // Очистка консоли
+								system("cls");
 							}
 							if (res == 0) {
 								field.fill(cs.getX(), cs.getY());
 							}
 						}
 						if (field.checkWin()) {
-							*(statistics.getWinsPointer()) += 1; // Увеличиваем количество побед на 1
+							*(statistics.getWinsPointer()) += 1;
 							win();
-							exit = true; // Завершаем игру
+							exit = true;
 							firstOpen = true;
-							system("cls"); // Очистка консоли
+							system("cls");
 						}
 						break;
 					}
-					if (field.Border(cs.getX(), cs.getY()))
-					{
+					if (field.Border(cs.getX(), cs.getY())) {
 						cs.undo();
 					}
 					cs.move();
 				}
 				statistics.TotalTime(player.total_time);
-				statistics.saveStatistics(); // Сохраняем статистику
+				statistics.saveStatistics();
 			}
 			else if (menu->selectedOption == 1) {
 				system("cls");
@@ -919,9 +856,9 @@ public:
 			}
 			else if (menu->selectedOption == 2) {
 				system("cls");
-				printf("Статистика игрока: %s\n", player.name.c_str());  // Жирным шрифтом заголовок
+				printf("Статистика игрока: %s\n", player.name.c_str());
 				displayStatistics(statistics);
-				if (statistics == stats2) { // Сравниваем статистики
+				if (statistics == stats2) {
 					std::cout << "Статистики равны. Вы ничего не изменили в статистике!" << std::endl;
 				}
 				else {
@@ -940,6 +877,7 @@ public:
 		}
 	}
 };
+
 // Производный класс AdvancedField от Field
 class AdvancedField : public Field {
 public:
@@ -959,56 +897,68 @@ public:
 
 };
 
-// Производный класс AIPlayer от Player
-class AIPlayer : public Player {
+class ICellInteraction {
 public:
-	AIPlayer() : Player() {
-		name = "AI_Player"; // Задаем имя по умолчанию
-	}
-	//AIPlayer* clone() const override { // Глубокое клонирование
-		//return new AIPlayer(*this);
-	//}
-	AIPlayer& operator=(const Player& other) {
-		if (this != &other) {
-			Player::operator=(other); // Вызов оператора присваивания базового класса
-			name = "AI_" + other.getName(); // Дополнительная логика
-		}
-		return *this;
-	}
-};
-// Абстрактный класс
-class IEntity {
-public:
-	virtual void display() = 0; // Чисто виртуальная функция
-	virtual ~IEntity() {} // Виртуальный деструктор
+	virtual ~ICellInteraction() = default; // Виртуальный деструктор
+	virtual int openCell(int x, int y, Cell field[SIZE][SIZE], int mask[SIZE][SIZE], int size) = 0; // Открытие ячейки
+	virtual void flagCell(int x, int y, int mask[SIZE][SIZE], int* remainMines) = 0; // Установка/снятие флага
+	virtual void revealMines(Cell field[SIZE][SIZE], int size) = 0; // Показ мин при проигрыше
 };
 
-// Реализация абстрактного класса
-class ConcreteEntity : public IEntity {
+class CellInteractionDelegate : public ICellInteraction {
 public:
-	void display() override {
-		std::cout << "Конкретная сущность." << std::endl;
+	int openCell(int x, int y, Cell field[SIZE][SIZE], int mask[SIZE][SIZE], int size) override {
+		const int EMPTY = 0;
+		const int FLAG = 11;
+		const int MINE = 10;
+		int result = 1;
+
+		if (mask[x][y] != FLAG) {
+			mask[x][y] = 1; // Открываем ячейку
+			field[x][y].isOpened = true; // Отмечаем ячейку как открытую
+			if (field[x][y].isMine) {
+				result = MINE; // Ячейка с миной
+			}
+			else if (field[x][y].mineCount == 0) {
+				result = EMPTY; // Пустая ячейка
+			}
+		}
+		return result;
+	}
+
+	void flagCell(int x, int y, int mask[SIZE][SIZE], int* remainMines) override {
+		const int EMPTY = 0;
+		const int FLAG = 11;
+		if (mask[x][y] != FLAG) {
+			mask[x][y] = FLAG; // Устанавливаем флаг
+			(*remainMines)--; // Уменьшаем счетчик мин
+		}
+		else {
+			mask[x][y] = EMPTY; // Снимаем флаг
+			(*remainMines)++; // Увеличиваем счетчик мин
+		}
+	}
+
+	void revealMines(Cell field[SIZE][SIZE], int size) override {
+		for (int x = 0; x < size; x++) {
+			for (int y = 0; y < size; y++) {
+				if (field[x][y].isMine) {
+					setColor(RED, WHITE); // Красный фон, белый текст
+					gotoxy(x, y);
+					std::cout << "*";
+				}
+			}
+		}
+		setColor(BLACK, WHITE); // Восстанавливаем стандартные цвета
 	}
 };
+
 int main()
 {
 
 	SetConsoleCP(1251);// установка кодовой страницы win-cp 1251 в поток ввода
 	SetConsoleOutputCP(1251); // установка кодовой страницы win-cp 1251 в поток вывода
 	setlocale(LC_ALL, "Rus");
-	GameEntity* entity = new Player();
-	entity->callDisplayInfo(); // Вызов через виртуальную функцию
-	delete entity;
-	// Пример использования
-	Player* player = new AIPlayer();
-	//Player* clonedPlayer = player->clone(); // Клонирование
-	delete player;
-	//delete clonedPlayer;
-	IEntity* entity = new ConcreteEntity();
-	//entity->display();
-	delete entity;
-	GameEntity* entity = new Player();
-	delete entity; // Вызов виртуального деструктора
 	srand(time(0));
 	Game game;
 	game.run();
